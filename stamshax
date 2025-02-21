@@ -1,0 +1,4 @@
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+Player:WaitForChild("BaseStamina").Value = math.huge
