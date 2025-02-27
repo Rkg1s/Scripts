@@ -1,39 +1,37 @@
-debugX = true
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Rayfield Example Window",
-    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-    LoadingTitle = "Rayfield Interface Suite",
-    LoadingSubtitle = "by Sirius",
-    Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+   Name = "DQ",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Rk DQ",
+   LoadingSubtitle = "by Rk",
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
-    DisableRayfieldPrompts = false,
-    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = nil, -- Create a custom folder for your hub/game
-        FileName = "Big Hub"
-    },
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Big Hub"
+   },
 
-    Discord = {
-        Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
-        Invite = "noinvitelink", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ ABCD would be ABCD
-        RememberJoins = true -- Set this to false to make them join the discord every time they load it up
-    },
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the discord every time they load it up
+   },
 
-    KeySystem = false, -- Set this to true to use our key system
-    KeySettings = {
-        Title = "Untitled",
-        Subtitle = "Key System",
-        Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
-        FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
-        SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-        GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-        Key = {"Hello"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
-    }
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"Hello"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
 })
 
 local Tab = Window:CreateTab("Tab Example", 4483362458) -- Title, Image
@@ -41,57 +39,22 @@ local Section = Tab:CreateSection("Section Example")
 
 local ToggleActive = false -- This flag will keep track of the toggle state
 
--- Create a Toggle that simulates keypresses for Q and E (feedback via notifications)
 local Toggle = Tab:CreateToggle({
-    Name = "Toggle Q and E Loop",
-    Callback = function(state)
-        ToggleActive = state
-        if ToggleActive then
-            -- Start the loop when toggled on
-            task.spawn(function()
-                while ToggleActive do
-                    -- Show a notification for each key press (feedback)
-                    game:GetService("StarterGui"):SetCore("SendNotification", {
-                        Title = "Key Simulation",
-                        Text = "Simulating key press: Q and E...",
-                        Duration = 1
-                    })
-                    wait(0.1)
-                end
-            end)
-        else
-            -- Ensure we stop the loop when toggle is off
-            ToggleActive = false
-        end
-    end,
+   Name = "Toggle Q and E Loop",
+   Callback = function(state)
+      ToggleActive = state
+      if ToggleActive then
+         -- Start the loop in a coroutine to prevent blocking the rest of the script
+         coroutine.wrap(function()
+            while ToggleActive do
+               game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.Q)
+               wait(0.1)
+               game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.E)
+               wait(0.1)
+            end
+         end)()
+      end
+   end,
 })
-
--- Input detection using UserInputService (listening for Q and E key presses)
-local UserInputService = game:GetService("UserInputService")
-
-local function onKeyPress(input, gameProcessed)
-    if gameProcessed then return end -- Ignore if the input is processed by the game
-
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.Q then
-            -- Feedback when Q key is pressed
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "Key Pressed",
-                Text = "Q Key was pressed!",
-                Duration = 2
-            })
-        elseif input.KeyCode == Enum.KeyCode.E then
-            -- Feedback when E key is pressed
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "Key Pressed",
-                Text = "E Key was pressed!",
-                Duration = 2
-            })
-        end
-    end
-end
-
--- Connect the function to the input began event
-UserInputService.InputBegan:Connect(onKeyPress)
 
 Rayfield:LoadConfiguration()
