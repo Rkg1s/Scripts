@@ -1,12 +1,6 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local CharRemotes = Remotes:WaitForChild("Character")
-
-local Remote = CharRemotes:WaitForChild("SwordActionCallback")
-
 local LoopKeyPress = false
 
 -- GUI creation
