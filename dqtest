@@ -1,55 +1,103 @@
--- Check if the script is running in a local environment
-local player = game.Players.LocalPlayer
-local userInterface = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui", true) -- Make sure ScreenGui exists or create one
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- Create a GUI if it doesn't exist
-if not userInterface then
-    userInterface = Instance.new("ScreenGui")
-    userInterface.Name = "ScreenGui"
-    userInterface.Parent = player:WaitForChild("PlayerGui")
-end
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CharRemotes = Remotes:WaitForChild("Character")
 
--- Create the frame and button for the UI
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 200)
-frame.Position = UDim2.new(0.5, -100, 0.5, -100)
-frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-frame.Parent = userInterface
+local Remote = CharRemotes:WaitForChild("SwordActionCallback")
 
-local greenOn = false
-local redOn = false
+local LoopKeyPress = false
 
--- Function to toggle green and red colors on/off
-local function toggleGreenRed(color)
-    if color == "green" then
-        greenOn = not greenOn
-        if greenOn then
-            frame.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+-- GUI creation
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")  -- Parent the GUI to CoreGui to make it permanent
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 200)
+Frame.Position = UDim2.new(0, 50, 0, 50)
+Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Frame.Parent = ScreenGui
+
+-- Toggle Button
+local ToggleKeyPressButton = Instance.new("TextButton")
+ToggleKeyPressButton.Size = UDim2.new(0, 200, 0, 50)
+ToggleKeyPressButton.Position = UDim2.new(0, 0, 0, 75)
+ToggleKeyPressButton.Text = "Toggle Q and E"
+ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Initial color Red (off)
+ToggleKeyPressButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleKeyPressButton.Parent = Frame
+
+local function PressKeys()
+    local keyPressIndex = 0
+    while LoopKeyPress do
+        keyPressIndex = (keyPressIndex % 2) + 1  -- Toggle between 1 (Q) and 2 (E)
+
+        if keyPressIndex == 1 then
+            -- Simulate pressing "Q"
+            game:GetService("UserInputService"):InputBegan({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.Q}, true)
+            print("Pressing Q")
         else
-            frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            -- Simulate pressing "E"
+            game:GetService("UserInputService"):InputBegan({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.E}, true)
+            print("Pressing E")
         end
-    elseif color == "red" then
-        redOn = not redOn
-        if redOn then
-            frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        
+        wait(0.5) -- Wait time between key presses (adjust as needed)
+        
+        if keyPressIndex == 1 then
+            -- Simulate releasing "Q"
+            game:GetService("UserInputService"):InputEnded({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.Q})
         else
-            frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            -- Simulate releasing "E"
+            game:GetService("UserInputService"):InputEnded({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.E})
         end
+
+        wait(0.5) -- Wait time between key releases (adjust as needed)
     end
 end
 
--- Bind the Q and E keys to toggle green and red colors
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Q then
-        toggleGreenRed("green")
-    elseif input.KeyCode == Enum.KeyCode.E then
-        toggleGreenRed("red")
+-- Toggle Key Press Loop
+ToggleKeyPressButton.MouseButton1Click:Connect(function()
+    LoopKeyPress = not LoopKeyPress
+    if LoopKeyPress then
+        print("Key press loop started")
+        ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)  -- Green (on)
+        spawn(function()
+            PressKeys()
+        end)
+    else
+        print("Key press loop stopped")
+        ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)  -- Red (off)
     end
 end)
 
--- Prevent the GUI from disappearing after death/reset
-game:GetService("RunService").Heartbeat:Connect(function()
-    if not player:FindFirstChild("PlayerGui") then
-        userInterface.Parent = player:WaitForChild("PlayerGui")
+-- Drag functionality
+local dragToggle = nil
+local dragStart = nil
+local startPos = nil
+
+local function dragInputBegan(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = Frame.Position
     end
-end)
+end
+
+local function dragInputChanged(input)
+    if dragToggle then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end
+
+local function dragInputEnded(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle = false
+    end
+end
+
+Frame.InputBegan:Connect(dragInputBegan)
+Frame.InputChanged:Connect(dragInputChanged)
+Frame.InputEnded:Connect(dragInputEnded)
