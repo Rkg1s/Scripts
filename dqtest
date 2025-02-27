@@ -1,97 +1,62 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+-- Place this script in a LocalScript inside the ScreenGui
 
-local LoopKeyPress = false
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- GUI creation
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")  -- Parent the GUI to PlayerGui
+-- GUI Elements
+local screenGui = script.Parent
+local toggleButton = screenGui:WaitForChild("ToggleButton")  -- Make sure your button is named ToggleButton
+local buttonLabel = toggleButton:WaitForChild("TextLabel")
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 200)
-Frame.Position = UDim2.new(0, 50, 0, 50)
-Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Frame.Parent = ScreenGui
+-- State and Loop
+local isLooping = false
+local loopRunning = false
 
--- Toggle Button
-local ToggleKeyPressButton = Instance.new("TextButton")
-ToggleKeyPressButton.Size = UDim2.new(0, 200, 0, 50)
-ToggleKeyPressButton.Position = UDim2.new(0, 0, 0, 75)
-ToggleKeyPressButton.Text = "Toggle Q and E"
-ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Initial color Red (off)
-ToggleKeyPressButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleKeyPressButton.Parent = Frame
+-- Functions to handle loop behavior
+local function pressKeys()
+    if isLooping then
+        -- Simulate Q key press
+        local qKey = Instance.new("InputObject", game) -- Make sure this input is valid
+        qKey.KeyCode = Enum.KeyCode.Q
+        UserInputService.InputBegan:Fire(qKey, false)
 
-local function PressKeys()
-    local keyPressIndex = 0
-    while LoopKeyPress do
-        keyPressIndex = (keyPressIndex % 2) + 1  -- Toggle between 1 (Q) and 2 (E)
+        wait(0.2)  -- Adjust the delay between Q and E presses
 
-        if keyPressIndex == 1 then
-            -- Simulate pressing "Q"
-            game:GetService("UserInputService"):InputBegan({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.Q}, true)
-            print("Pressing Q")
-        else
-            -- Simulate pressing "E"
-            game:GetService("UserInputService"):InputBegan({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.E}, true)
-            print("Pressing E")
-        end
-        
-        wait(0.5) -- Wait time between key presses (adjust as needed)
-        
-        if keyPressIndex == 1 then
-            -- Simulate releasing "Q"
-            game:GetService("UserInputService"):InputEnded({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.Q})
-        else
-            -- Simulate releasing "E"
-            game:GetService("UserInputService"):InputEnded({UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.E})
-        end
+        -- Simulate E key press
+        local eKey = Instance.new("InputObject", game) -- Make sure this input is valid
+        eKey.KeyCode = Enum.KeyCode.E
+        UserInputService.InputBegan:Fire(eKey, false)
 
-        wait(0.5) -- Wait time between key releases (adjust as needed)
+        wait(0.2)
     end
 end
 
--- Toggle Key Press Loop
-ToggleKeyPressButton.MouseButton1Click:Connect(function()
-    LoopKeyPress = not LoopKeyPress
-    if LoopKeyPress then
-        print("Key press loop started")
-        ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)  -- Green (on)
-        spawn(function()
-            PressKeys()
-        end)
+-- Toggle button click function
+local function toggleLoop()
+    isLooping = not isLooping
+    loopRunning = true  -- Starts loop when toggled
+
+    -- Change button color to indicate state
+    local targetColor = isLooping and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    local tween = TweenService:Create(toggleButton, TweenInfo.new(0.5), {BackgroundColor3 = targetColor})
+    tween:Play()
+
+    -- Button label changes
+    buttonLabel.Text = isLooping and "Looping: ON" or "Looping: OFF"
+end
+
+-- Loop handling
+while true do
+    if isLooping then
+        pressKeys()  -- Call the function to press the keys
+
+        -- Wait for a short period before repeating (controls frequency of key presses)
+        wait(1)
     else
-        print("Key press loop stopped")
-        ToggleKeyPressButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)  -- Red (off)
-    end
-end)
-
--- Drag functionality
-local dragToggle = nil
-local dragStart = nil
-local startPos = nil
-
-local function dragInputBegan(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = Frame.Position
+        -- Wait for toggle to turn on
+        wait(0.1)
     end
 end
 
-local function dragInputChanged(input)
-    if dragToggle then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end
-
-local function dragInputEnded(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = false
-    end
-end
-
-Frame.InputBegan:Connect(dragInputBegan)
-Frame.InputChanged:Connect(dragInputChanged)
-Frame.InputEnded:Connect(dragInputEnded)
+-- Connect button click to toggle the loop
+toggleButton.MouseButton1Click:Connect(toggleLoop)
