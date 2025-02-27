@@ -11,7 +11,7 @@ local LoopKeyPress = false
 
 -- GUI creation
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game:GetService("CoreGui")  -- Parent the GUI to CoreGui to make it permanent
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")  -- Parent the GUI to PlayerGui
 
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 200, 0, 200)
