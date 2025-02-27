@@ -3,17 +3,17 @@ debugX = true
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "DQ",
+   Name = "Rayfield Example Window",
    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rk DQ",
-   LoadingSubtitle = "by Rk",
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
    Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
    DisableRayfieldPrompts = false,
    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
    ConfigurationSaving = {
-      Enabled = false,
+      Enabled = true,
       FolderName = nil, -- Create a custom folder for your hub/game
       FileName = "Big Hub"
    },
@@ -41,17 +41,26 @@ local Section = Tab:CreateSection("Section Example")
 
 local ToggleActive = false -- This flag will keep track of the toggle state
 
+-- Create a Toggle that simulates keypresses for Q and E
 local Toggle = Tab:CreateToggle({
    Name = "Toggle Q and E Loop",
    Callback = function(state)
       ToggleActive = state
       if ToggleActive then
-         while ToggleActive do
-            game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.Q)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.E)
-            wait(0.1)
-         end
+         -- Start the loop when toggled on
+         spawn(function()
+            while ToggleActive do
+                -- Simulate Q key press
+                game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.Q)
+                wait(0.1)
+                -- Simulate E key press
+                game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.E)
+                wait(0.1)
+            end
+         end)
+      else
+         -- Ensure we stop the loop when toggle is off
+         ToggleActive = false
       end
    end,
 })
