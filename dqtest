@@ -1,0 +1,60 @@
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local userInterface = player.PlayerGui:WaitForChild("ScreenGui")
+local button = userInterface:WaitForChild("ToggleButton")
+local frame = userInterface:WaitForChild("Frame")
+
+local greenOn = false
+local redOn = false
+
+local function toggleGreenRed(color)
+    if color == "green" then
+        greenOn = not greenOn
+        if greenOn then
+            frame.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        else
+            frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    elseif color == "red" then
+        redOn = not redOn
+        if redOn then
+            frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        else
+            frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    end
+end
+
+local function onKeyPress(input)
+    if input.KeyCode == Enum.KeyCode.Q then
+        toggleGreenRed("green")
+    elseif input.KeyCode == Enum.KeyCode.E then
+        toggleGreenRed("red")
+    end
+end
+
+game:GetService("UserInputService").InputBegan:Connect(onKeyPress)
+
+game.Players.PlayerAdded:Connect(function()
+    player = game.Players.LocalPlayer
+    userInterface.Parent = player:WaitForChild("PlayerGui")
+    userInterface.Enabled = true
+end)
+
+game.Players.PlayerRemoving:Connect(function()
+    userInterface.Enabled = false
+end)
+
+-- GUI visibility persistence
+game:WaitForChild("Players").PlayerAdded:Connect(function(plr)
+    if plr == player then
+        userInterface.Enabled = true
+    end
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Prevent the GUI from disappearing on reset/death
+    if not player:FindFirstChild("PlayerGui") then
+        userInterface.Parent = player:WaitForChild("PlayerGui")
+    end
+end)
