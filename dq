@@ -48,7 +48,7 @@ local Toggle = Tab:CreateToggle({
       ToggleActive = state
       if ToggleActive then
          -- Start the loop when toggled on
-         spawn(function()
+         task.spawn(function()
             while ToggleActive do
                 -- Simulate Q key press
                 game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.Q)
