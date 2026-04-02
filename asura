@@ -1,0 +1,90 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldRoot = game:GetService("Workspace")
+local Players = game:GetService("Players")
+
+local Player = Players.LocalPlayer
+local Currencies = Player.Currencies
+
+local Deposit = ReplicatedStorage.Remotes.RequestFunc
+
+local Yen = Currencies.Yen
+local Bank = Currencies.YenInBank
+
+local AutoDepositAmount = 250000
+
+local Board = nil
+for _, Inst in ipairs(WorldRoot.Map:GetChildren()) do
+	if Inst.Name == "QuestBoard" then
+		local TempBoard = Inst:FindFirstChild("Job")
+
+		if TempBoard then
+			local ProximityPrompt = TempBoard:FindFirstChild("ProximityPrompt")
+
+			-- Using string.match here in case they change the text
+			if ProximityPrompt and string.match(ProximityPrompt.ObjectText, "Deliver") then
+				Board = TempBoard
+			end
+		end
+	end
+end
+
+local Delivery = WorldRoot.Jobs.Delivery
+
+local Spots = Delivery.Spots:GetChildren()
+
+local Dead = Random.new()
+local function RandomOffset(Range)
+	return CFrame.new(
+		Dead:NextNumber(-Range, Range), 0, 
+		Dead:NextNumber(-Range, Range)
+	)
+end
+
+local function FindClosest(Position: Vector3)
+    local Closest, MinDistance = nil, math.huge
+    for _, Spot in ipairs(Spots) do
+        if not Spot.b1.Enabled or not Spot.b2.Enabled then
+            continue
+        end
+
+        local Distance = (Spot.Position - Position).Magnitude
+        if not Closest then
+            MinDistance = Distance
+            Closest = Spot
+        end
+
+        if Distance < MinDistance then
+            MinDistance = Distance
+            Closest = Spot
+        end
+    end
+
+    return Closest, MinDistance
+end
+
+local ReturnPosition = nil
+
+while task.wait() do
+    local PrimaryPart = Player.Character.PrimaryPart
+	if Yen.Value >= AutoDepositAmount then
+		local OldValue = Yen.Value
+
+		Deposit:InvokeServer("ATM", {
+        	"Deposit", OldValue}
+		)
+
+		warn("I've deposited", OldValue.."¥", "to the bank")
+		print("You now have", Bank.Value.."¥", "in the bank")
+		continue
+	end
+
+    local Closest, Distance = FindClosest(PrimaryPart.Position)
+
+    if not Closest then
+		PrimaryPart:PivotTo(Board.CFrame * CFrame.new(0, -8, 0))
+        fireproximityprompt(Board.ProximityPrompt)
+        continue
+    end
+
+    PrimaryPart:PivotTo(Closest.CFrame * CFrame.new(0, -3.5, 0) * RandomOffset(0.25))
+end
