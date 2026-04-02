@@ -86,5 +86,5 @@ while task.wait() do
         continue
     end
 
-    PrimaryPart:PivotTo(Closest.CFrame * CFrame.new(0, -2.5, 0) * RandomOffset(0.25))
+    PrimaryPart:PivotTo(Closest.CFrame * CFrame.new(0, -2, 0) * RandomOffset(0.25))
 end
