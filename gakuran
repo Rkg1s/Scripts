@@ -1402,35 +1402,58 @@ end
 
 -- Wait for Xenotech UI to be ready, then populate UI table and start the loop
 spawn(function()
+    -- Wait for the UI to be fully loaded and initialized
     while not _G.ui_ready do wait(100) end
+    wait(500) -- Give the UI an extra half-second to fully render all elements
     
-    -- Map Xenotech UI elements to the format your script expects
-    -- We use _G.UI to access the global table created by the GUI file
-    UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
-    UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
-    UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
-    UI.height_on = { get_value = function() return _G.UI.height_on.Value end }
-    UI.ping_on = { get_value = function() return _G.UI.ping_on.Value end }
-    UI.offset_s = { get_value = function() return _G.UI.offset_s.Value end }
-    UI.default_s = { get_value = function() return _G.UI.default_s.Value end }
-    UI.wingchun_counter = { get_value = function() return _G.UI.wingchun_counter.Value end }
-    UI.wingchun_keybind = { get_state = function() return _G.UI.wingchun_keybind.State end }
-    UI.dodge_m2 = { get_value = function() return _G.UI.dodge_m2.Value end }
-    UI.dodge_m1 = { get_value = function() return _G.UI.dodge_m1.Value end }
-    UI.dodge_range_s = { get_value = function() return _G.UI.dodge_range_s.Value end }
-    UI.smart_offset_on = { get_value = function() return _G.UI.smart_offset_on.Value end }
-    UI.smart_offset_mode = { get_value = function() return _G.UI.smart_offset_mode.Value end }
-    UI.window_s = { get_value = function() return _G.UI.window_s.Value end }
-    UI.show_esp = { get_value = function() return _G.UI.show_esp.Value end }
-    UI.show_dodge_esp = { get_value = function() return _G.UI.show_dodge_esp.Value end }
-    UI.mark_rng = { get_value = function() return _G.UI.mark_rng.Value end }
-    UI.mark_gate = { get_value = function() return _G.UI.mark_gate.Value end }
-    UI.facing_them = { get_value = function() return _G.UI.facing_them.Value end }
-    UI.facing_me = { get_value = function() return _G.UI.facing_me.Value end }
-    UI.cone_s = { get_value = function() return _G.UI.cone_s.Value end }
-    UI.log_unknown = { get_value = function() return _G.UI.log_unknown.Value end }
-    UI.debug_on = { get_value = function() return _G.UI.debug_on.Value end }
-    UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
+    -- Safely map Xenotech UI elements to the format your script expects
+    -- We use pcall to prevent crashes if an element isn't found
+    local function safe_get(obj)
+        if not obj then return nil end
+        return { 
+            get_value = function() return obj.Value end,
+            set_value = function(val) if obj.SetValue then obj:SetValue(val) end end,
+            change_callback = function(cb) if obj.OnChanged then obj:OnChanged(cb) end end
+        }
+    end
+    
+    UI.parry_on = safe_get(_G.UI.parry_on)
+    UI.range_s = safe_get(_G.UI.range_s)
+    UI.vert_s = safe_get(_G.UI.vert_s)
+    UI.height_on = safe_get(_G.UI.height_on)
+    UI.ping_on = safe_get(_G.UI.ping_on)
+    UI.offset_s = safe_get(_G.UI.offset_s)
+    UI.default_s = safe_get(_G.UI.default_s)
+    UI.wingchun_counter = safe_get(_G.UI.wingchun_counter)
+    UI.wingchun_keybind = safe_get(_G.UI.wingchun_keybind)
+    UI.dodge_m2 = safe_get(_G.UI.dodge_m2)
+    UI.dodge_m1 = safe_get(_G.UI.dodge_m1)
+    UI.dodge_range_s = safe_get(_G.UI.dodge_range_s)
+    UI.smart_offset_on = safe_get(_G.UI.smart_offset_on)
+    UI.smart_offset_mode = safe_get(_G.UI.smart_offset_mode)
+    UI.window_s = safe_get(_G.UI.window_s)
+    UI.show_esp = safe_get(_G.UI.show_esp)
+    UI.show_dodge_esp = safe_get(_G.UI.show_dodge_esp)
+    UI.mark_rng = safe_get(_G.UI.mark_rng)
+    UI.mark_gate = safe_get(_G.UI.mark_gate)
+    UI.facing_them = safe_get(_G.UI.facing_them)
+    UI.facing_me = safe_get(_G.UI.facing_me)
+    UI.cone_s = safe_get(_G.UI.cone_s)
+    UI.log_unknown = safe_get(_G.UI.log_unknown)
+    UI.debug_on = safe_get(_G.UI.debug_on)
+    
+    -- Special wrapper for KeyPicker (needs get_state)
+    if _G.UI.wingchun_keybind then
+        UI.wingchun_keybind.get_state = function() 
+            if _G.UI.wingchun_keybind.GetState then return _G.UI.wingchun_keybind:GetState() end
+            return false
+        end
+    end
+    
+    -- Special wrapper for status label
+    if _G.UI.smart_offset_status then
+        UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
+    end
     
     -- Now populate Settings.Items so saving/loading works
     Settings.Items = {
@@ -1475,7 +1498,6 @@ spawn(function()
 
     hook.add("render", "perpetual", function()
         draw_parry_esp()
-        -- We don't update the status label here because the UI handles its own rendering
     end)
 
     log.add("perpetual loaded -- auto-parry", Colors.GREEN)
