@@ -10,9 +10,9 @@ local RUN_ID = _G.__perpetual_run
 local Colors = {}
 local Const = {}
 local Anims = {}
-local UI = {} -- This will be populated later after the UI loads
+local UI = {} 
 local Settings = {}
-local S = {} -- State
+local S = {} 
 
 -- ================= colors =================
 Colors.GREEN  = color(0.2, 1, 0.2, 1)
@@ -37,7 +37,6 @@ Const.OFF = {
     NodeSlot         = 0x10,
     ListNext         = 0x0,
 }
-
 Const.offsets_synced = false
 
 -- ================= keys / attribute types =================
@@ -86,7 +85,7 @@ for _, n in pairs({
     Anims.Ignore["rbxassetid://" .. tostring(n)] = true
 end
 
--- ================= GameConfig (HARDCODED TIMINGS INTACT) =================
+-- ================= GameConfig =================
 local function atk(display, parry_time_ms, options)
     options = options or {}
     return {
@@ -196,7 +195,6 @@ local RawConfig = {
     },
 }
 
--- DODGE FALL BACK BETA
 local GlobalFallbackAnims = {
     ["M2"] = atk("M2", 500, { hold = 350, dodge = 400, dodgeWindow = 100 })
 }
@@ -254,7 +252,6 @@ local function set_ui_value(label, value)
     pcall(function() ui.setvalue(MENU_NAME, label, value) end)
 end
 
--- Function to save the Smart Offset Math to an external JSON file
 local function save_smart_offsets_to_json()
     local t = {}
     for k, v in pairs(S.SmartOffset.move_offsets) do
@@ -300,7 +297,6 @@ local function save_smart_offsets_to_json()
     end)
 end
 
--- Function to load the Smart Offset Math from the external JSON file on startup
 local function load_smart_offsets_from_json()
     if not file.exists("SmartStyleOffset.json") then return end
     local ok, data = pcall(function() return JSON_to_table(file.read("SmartStyleOffset.json")) end)
@@ -407,8 +403,6 @@ end
 
 -- ================= settings persistence =================
 Settings.File = "perpetual_settings.json"
-
--- We define these as empty tables for now, they will be populated after the UI loads
 Settings.Items = {}
 
 local function settings_save()
@@ -448,9 +442,7 @@ local function settings_load()
         end
     end
     is_loading = false 
-    
     load_smart_offsets_from_json()
-    
     return true
 end
 
@@ -1083,7 +1075,6 @@ S.OutcomeState.record = function(action, outcome, reason, extra)
                 end
             end
         elseif outcome == "ok" then
-            -- Only nudge if it was pressed heavily on one side of the window
             local age_ratio = (action.resultAge or 0) / (action.parryWindow or 130)
             if age_ratio < 0.3 then
                 sample.early = true
@@ -1092,7 +1083,7 @@ S.OutcomeState.record = function(action, outcome, reason, extra)
                 sample.early = false
                 sample.miss_distance = 1
             else
-                return -- Perfectly centered, don't nudge!
+                return 
             end
         end
         
@@ -1402,12 +1393,9 @@ end
 
 -- Wait for Xenotech UI to be ready, then populate UI table and start the loop
 spawn(function()
-    -- Wait for the UI to be fully loaded and initialized
     while not _G.ui_ready do wait(100) end
-    wait(500) -- Give the UI an extra half-second to fully render all elements
+    wait(500) 
     
-    -- Safely map Xenotech UI elements to the format your script expects
-    -- We use pcall to prevent crashes if an element isn't found
     local function safe_get(obj)
         if not obj then return nil end
         return { 
@@ -1442,7 +1430,6 @@ spawn(function()
     UI.log_unknown = safe_get(_G.UI.log_unknown)
     UI.debug_on = safe_get(_G.UI.debug_on)
     
-    -- Special wrapper for KeyPicker (needs get_state)
     if _G.UI.wingchun_keybind then
         UI.wingchun_keybind.get_state = function() 
             if _G.UI.wingchun_keybind.GetState then return _G.UI.wingchun_keybind:GetState() end
@@ -1450,12 +1437,10 @@ spawn(function()
         end
     end
     
-    -- Special wrapper for status label
     if _G.UI.smart_offset_status then
         UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
     end
     
-    -- Now populate Settings.Items so saving/loading works
     Settings.Items = {
         { key = "parry_on", w = UI.parry_on, def = true },
         { key = "wingchun_counter", w = UI.wingchun_counter, def = false },
@@ -1487,7 +1472,6 @@ spawn(function()
         log.add("[settings] loaded " .. Settings.File, Colors.CYAN)
     end
 
-    -- Start the main loop
     spawn(function()
         while _G.__perpetual_run == RUN_ID do
             main_loop(get_tickcount())
