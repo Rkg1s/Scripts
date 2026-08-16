@@ -1,0 +1,1213 @@
+--------------------------------------------------------------------------
+--  XENOTECH UI
+--  A from-scratch interface toolkit for the Photon render/input API.
+--
+--  Aesthetic pass: alien-tech / far-future HUD. Every panel is a
+--  chamfered (cut-corner) plate instead of a rounded rectangle,
+--  focus states are drawn as targeting-reticle corner brackets,
+--  toggles are glowing hex power-cells, sliders are energy conduits
+--  with traveling particles, and the whole window sits inside a
+--  faint scan-grid with an animated sweep line and a soft energy
+--  halo. Theming is still a tweened, clickable swatch gallery.
+--------------------------------------------------------------------------
+
+math.randomseed(get_unixtime())
+
+local Library = {
+    Windows = {}, Toggles = {}, Options = {}, Keybinds = {},
+    Notifications = {},
+    Watermark = { Text = "Xenotech UI", Pos = vector2(10, 10), Visible = true },
+
+    ActiveSlider = nil, DraggingWindow = nil, DragOffset = vector2(0, 0),
+    DraggingWatermark = false,
+
+    Hue = 0, CurrentRainbowColor = color(1, 0, 0, 1),
+
+    OpenedDropdown = nil, OpenedKeybindMenu = nil,
+    ActiveColorPicker = nil, ActiveKeyPicker = nil, ActiveInput = nil,
+    Tooltip = nil, ModalOpen = false,
+
+    Black = color(0, 0, 0, 1),
+
+    -- live (possibly mid-tween) theme colors
+    FontColor       = color(1, 1, 1, 1),
+    MainColor       = color(0.109, 0.109, 0.109, 1),
+    BackgroundColor = color(0.078, 0.078, 0.078, 1),
+    AccentColor     = color(0.10, 0.75, 1, 1),
+    Accent2Color    = color(0.55, 0.15, 1, 1),
+    OutlineColor    = color(0.196, 0.196, 0.196, 1),
+    RiskColor       = color(1, 0.2, 0.2, 1),
+
+    ThemeTween = nil,
+    CurrentThemeName = "Vortessence",
+}
+
+--------------------------------------------------------------------------
+--  Key tables (unchanged responsibilities: key names / char maps)
+--------------------------------------------------------------------------
+
+local KEY_NAMES = {
+    [0x01] = "MB1", [0x02] = "MB2", [0x04] = "MB3", [0x05] = "MB4", [0x06] = "MB5",
+    [0x08] = "Backspace", [0x09] = "Tab", [0x0D] = "Enter", [0x10] = "Shift", [0x11] = "Ctrl", [0x12] = "Alt",
+    [0x13] = "Pause", [0x14] = "Caps Lock", [0x1B] = "Esc", [0x20] = "Space", [0x21] = "Page Up", [0x22] = "Page Down",
+    [0x23] = "End", [0x24] = "Home", [0x25] = "Left", [0x26] = "Up", [0x27] = "Right", [0x28] = "Down",
+    [0x2D] = "Insert", [0x2E] = "Delete",
+    [0x30] = "0", [0x31] = "1", [0x32] = "2", [0x33] = "3", [0x34] = "4", [0x35] = "5", [0x36] = "6", [0x37] = "7", [0x38] = "8", [0x39] = "9",
+    [0x41] = "A", [0x42] = "B", [0x43] = "C", [0x44] = "D", [0x45] = "E", [0x46] = "F", [0x47] = "G", [0x48] = "H", [0x49] = "I",
+    [0x4A] = "J", [0x4B] = "K", [0x4C] = "L", [0x4D] = "M", [0x4E] = "N", [0x4F] = "O", [0x50] = "P", [0x51] = "Q", [0x52] = "R",
+    [0x53] = "S", [0x54] = "T", [0x55] = "U", [0x56] = "V", [0x57] = "W", [0x58] = "X", [0x59] = "Y", [0x5A] = "Z",
+    [0x60] = "Num 0", [0x61] = "Num 1", [0x62] = "Num 2", [0x63] = "Num 3", [0x64] = "Num 4", [0x65] = "Num 5", [0x66] = "Num 6", [0x67] = "Num 7", [0x68] = "Num 8", [0x69] = "Num 9",
+    [0x70] = "F1", [0x71] = "F2", [0x72] = "F3", [0x73] = "F4", [0x74] = "F5", [0x75] = "F6", [0x76] = "F7", [0x77] = "F8", [0x78] = "F9", [0x79] = "F10", [0x7A] = "F11", [0x7B] = "F12",
+    [0xBA] = ";", [0xBB] = "=", [0xBC] = ",", [0xBD] = "-", [0xBE] = ".", [0xBF] = "/", [0xC0] = "`", [0xDB] = "[", [0xDC] = "\\", [0xDD] = "]", [0xDE] = "'"
+}
+
+local KEY_CODES = {}
+for code, name in pairs(KEY_NAMES) do KEY_CODES[name] = code end
+
+local CHAR_MAP_NORMAL = {
+    [0x30]="0",[0x31]="1",[0x32]="2",[0x33]="3",[0x34]="4",[0x35]="5",[0x36]="6",[0x37]="7",[0x38]="8",[0x39]="9",[0x41]="a",[0x42]="b",[0x43]="c",[0x44]="d",[0x45]="e",[0x46]="f",[0x47]="g",[0x48]="h",[0x49]="i",[0x4A]="j",[0x4B]="k",[0x4C]="l",[0x4D]="m",[0x4E]="n",[0x4F]="o",[0x50]="p",[0x51]="q",[0x52]="r",[0x53]="s",[0x54]="t",[0x55]="u",[0x56]="v",[0x57]="w",[0x58]="x",[0x59]="y",[0x5A]="z",[0x60]="0",[0x61]="1",[0x62]="2",[0x63]="3",[0x64]="4",[0x65]="5",[0x66]="6",[0x67]="7",[0x68]="8",[0x69]="9",[0xBA]=";",[0xBB]="=",[0xBC]=",",[0xBD]="-",[0xBE]=".",[0xBF]="/",[0xC0]="`",[0xDB]="[",[0xDC]="\\",[0xDD]="]",[0xDE]="'",[0x20]=" "
+}
+
+local CHAR_MAP_SHIFT = {
+    [0x30]=")",[0x31]="!",[0x32]="@",[0x33]="#",[0x34]="$",[0x35]="%",[0x36]="^",[0x37]="&",[0x38]="*",[0x39]="(",[0x41]="A",[0x42]="B",[0x43]="C",[0x44]="D",[0x45]="E",[0x46]="F",[0x47]="G",[0x48]="H",[0x49]="I",[0x4A]="J",[0x4B]="K",[0x4C]="L",[0x4D]="M",[0x4E]="N",[0x4F]="O",[0x50]="P",[0x51]="Q",[0x52]="R",[0x53]="S",[0x54]="T",[0x55]="U",[0x56]="V",[0x57]="W",[0x58]="X",[0x59]="Y",[0x5A]="Z",[0xBA]=":",[0xBB]="+",[0xBC]="<",[0xBD]="_",[0xBE]=">",[0xBF]="?",[0xC0]="~",[0xDB]="{",[0xDC]="|",[0xDD]="}",[0xDE]='"'
+}
+
+--------------------------------------------------------------------------
+--  Math / color helpers
+--------------------------------------------------------------------------
+
+local function rgb_to_hsv(c)
+    local r, g, b = c.r, c.g, c.b
+    local maxc = math.max(r, g, b)
+    local minc = math.min(r, g, b)
+    local h, s, v = 0, 0, maxc
+    local diff = maxc - minc
+    if maxc ~= 0 then s = diff / maxc else return 0, 0, 0 end
+    if diff > 1e-5 then
+        if maxc == r then h = (g - b) / diff
+        elseif maxc == g then h = 2 + (b - r) / diff
+        else h = 4 + (r - g) / diff end
+        h = h / 6
+        if h < 0 then h = h + 1 end
+    end
+    return h, s, v
+end
+
+local function hsv_to_rgb(h, s, v, a)
+    local r, g, b
+    local i = math.floor(h * 6)
+    local f = h * 6 - i
+    local p = v * (1 - s)
+    local q = v * (1 - f * s)
+    local t = v * (1 - (1 - f) * s)
+    i = i % 6
+    if i == 0 then r, g, b = v, t, p elseif i == 1 then r, g, b = q, v, p elseif i == 2 then r, g, b = p, v, t
+    elseif i == 3 then r, g, b = p, q, v elseif i == 4 then r, g, b = t, p, v elseif i == 5 then r, g, b = v, p, q end
+    return color(r, g, b, a or 1)
+end
+
+local function resolve_color(c)
+    if type(c) == "function" then return c() end
+    return c
+end
+
+local function lerp(a, b, t) return a + (b - a) * t end
+
+local function lerp_color(a, b, t)
+    a, b = resolve_color(a), resolve_color(b)
+    return color(lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t), lerp(a.a, b.a, t))
+end
+
+local function ease_out_cubic(t) return 1 - (1 - t) ^ 3 end
+
+local function is_mouse_in_rect(pos, size)
+    if not pos or not size then return false end
+    local mouse_pos = input.get_mouse_position()
+    return mouse_pos.x >= pos.x and mouse_pos.x <= pos.x + size.x and mouse_pos.y >= pos.y and mouse_pos.y <= pos.y + size.y
+end
+
+local function get_clipped_text(text, max_width)
+    text = tostring(text)
+    if render.get_text_size(text).x <= max_width then return text end
+    local clipped_text = text
+    while render.get_text_size(clipped_text .. "...").x > max_width and #clipped_text > 0 do
+        clipped_text = string.sub(clipped_text, 1, -2)
+    end
+    return clipped_text .. "..."
+end
+
+local function spaced_text(s)
+    local out = {}
+    for i = 1, #s do
+        local ch = s:sub(i, i)
+        table.insert(out, ch)
+    end
+    return table.concat(out, " ")
+end
+
+local function draw_checkerboard(pos, size, square_size)
+    local c1 = color(0.8, 0.8, 0.8, 1)
+    local c2 = color(0.6, 0.6, 0.6, 1)
+    for y = 0, math.ceil(size.y / square_size) - 1 do
+        for x = 0, math.ceil(size.x / square_size) - 1 do
+            local p = pos:add(vector2(x * square_size, y * square_size))
+            local s = vector2(math.min(square_size, size.x - x * square_size), math.min(square_size, size.y - y * square_size))
+            local current_c = (x + y) % 2 == 0 and c1 or c2
+            render.add_rect_filled(p, p:add(s), current_c, 0)
+        end
+    end
+end
+
+--------------------------------------------------------------------------
+--  Alien-tech geometry primitives: chamfered plates, hexes, HUD brackets
+--------------------------------------------------------------------------
+
+local function chamfered_points(pos, size, chamfer)
+    local c = math.min(chamfer, size.x / 2, size.y / 2)
+    local x1, y1 = pos.x, pos.y
+    local x2, y2 = pos.x + size.x, pos.y + size.y
+    return {
+        vector2(x1 + c, y1), vector2(x2 - c, y1),
+        vector2(x2, y1 + c), vector2(x2, y2 - c),
+        vector2(x2 - c, y2), vector2(x1 + c, y2),
+        vector2(x1, y2 - c), vector2(x1, y1 + c),
+    }
+end
+
+local function draw_chamfered_outline(pos, size, chamfer, col, thickness)
+    local pts = chamfered_points(pos, size, chamfer)
+    for i = 1, #pts do
+        render.add_line(pts[i], pts[(i % #pts) + 1], col, thickness or 1)
+    end
+end
+
+local function draw_chamfered_filled(pos, size, chamfer, col)
+    local pts = chamfered_points(pos, size, chamfer)
+    local center = vector2(pos.x + size.x / 2, pos.y + size.y / 2)
+    for i = 1, #pts do
+        render.add_triangle_filled(center, pts[i], pts[(i % #pts) + 1], col)
+    end
+end
+
+local function hex_points(center, radius, rotation_deg)
+    local pts = {}
+    for i = 0, 5 do
+        local ang = math.rad(60 * i + (rotation_deg or 0))
+        table.insert(pts, vector2(center.x + radius * math.cos(ang), center.y + radius * math.sin(ang)))
+    end
+    return pts
+end
+
+local function draw_hex_outline(center, radius, col, thickness, rotation_deg)
+    local pts = hex_points(center, radius, rotation_deg)
+    for i = 1, 6 do render.add_line(pts[i], pts[(i % 6) + 1], col, thickness or 1) end
+end
+
+local function draw_hex_filled(center, radius, col, rotation_deg)
+    local pts = hex_points(center, radius, rotation_deg)
+    for i = 1, 6 do render.add_triangle_filled(center, pts[i], pts[(i % 6) + 1], col) end
+end
+
+-- Targeting-reticle style corner brackets, drawn slightly outside (or inside,
+-- via a negative inset) the given rect.
+local function draw_corner_brackets(pos, size, col, len, thickness, inset)
+    inset = inset or 0; len = len or 10; thickness = thickness or 2
+    local x1, y1 = pos.x - inset, pos.y - inset
+    local x2, y2 = pos.x + size.x + inset, pos.y + size.y + inset
+    render.add_line(vector2(x1, y1), vector2(x1 + len, y1), col, thickness)
+    render.add_line(vector2(x1, y1), vector2(x1, y1 + len), col, thickness)
+    render.add_line(vector2(x2, y1), vector2(x2 - len, y1), col, thickness)
+    render.add_line(vector2(x2, y1), vector2(x2, y1 + len), col, thickness)
+    render.add_line(vector2(x1, y2), vector2(x1 + len, y2), col, thickness)
+    render.add_line(vector2(x1, y2), vector2(x1, y2 - len), col, thickness)
+    render.add_line(vector2(x2, y2), vector2(x2 - len, y2), col, thickness)
+    render.add_line(vector2(x2, y2), vector2(x2, y2 - len), col, thickness)
+end
+
+-- Cheap layered-outline "bloom" approximation for an energy-field glow.
+local function glow_rect_outline(pos, size, col, layers, base_alpha, spread)
+    layers = layers or 3; spread = spread or 3
+    for i = layers, 1, -1 do
+        local o = i * spread
+        local a = base_alpha / i
+        render.add_rect(pos:add(vector2(-o, -o)), pos:add(size):add(vector2(o, o)), color(col.r, col.g, col.b, a), 0, 1)
+    end
+end
+
+local function draw_grid_pattern(pos, size, col, spacing)
+    local c = color(col.r, col.g, col.b, 0.05)
+    local x = spacing
+    while x < size.x do
+        render.add_line(pos:add(vector2(x, 0)), pos:add(vector2(x, size.y)), c, 1)
+        x = x + spacing
+    end
+    local y = spacing
+    while y < size.y do
+        render.add_line(pos:add(vector2(0, y)), pos:add(vector2(size.x, y)), c, 1)
+        y = y + spacing
+    end
+end
+
+-- Shared layout constants for the rail-based window shell
+local RAIL_W, CONTENT_PAD, COL_GAP, TITLE_H = 62, 10, 8, 32
+
+local function get_group_width(window)
+    local content_w = window.Size.x - RAIL_W - CONTENT_PAD * 2
+    return (content_w - COL_GAP) / 2
+end
+
+local function get_group_inner_width(window)
+    return get_group_width(window) - 8
+end
+
+--------------------------------------------------------------------------
+--  Theme engine
+--------------------------------------------------------------------------
+
+Library.Themes = {
+    ["Vortessence"]     = { Font=color(0.90,0.97,1,1),  Main=color(0.05,0.08,0.10,1),   Background=color(0.03,0.05,0.065,1),  Accent=color(0.10,0.78,1,1),   Accent2=color(0.35,0.35,1,1), Outline=color(0.14,0.20,0.24,1), Risk=color(1,0.3,0.35,1) },
+    ["Xenari Bloom"]    = { Font=color(0.96,0.92,1,1),  Main=color(0.08,0.05,0.10,1),   Background=color(0.045,0.025,0.06,1), Accent=color(0.75,0.25,1,1),   Accent2=color(1,0.2,0.75,1),  Outline=color(0.22,0.13,0.28,1), Risk=color(1,0.25,0.4,1) },
+    ["Kryll Magenta"]   = { Font=color(1,0.92,0.98,1),  Main=color(0.09,0.04,0.08,1),   Background=color(0.06,0.025,0.05,1),  Accent=color(1,0.15,0.65,1),   Accent2=color(0.6,0.1,1,1),   Outline=color(0.24,0.11,0.19,1), Risk=color(1,0.25,0.35,1) },
+    ["Zha'gora Ember"]  = { Font=color(1,0.95,0.88,1),  Main=color(0.10,0.06,0.03,1),   Background=color(0.065,0.035,0.02,1), Accent=color(1,0.45,0.05,1),   Accent2=color(1,0.15,0.15,1), Outline=color(0.25,0.15,0.06,1), Risk=color(1,0.2,0.15,1) },
+    ["Nebulon Drift"]   = { Font=color(0.93,0.95,1,1),  Main=color(0.06,0.06,0.12,1),   Background=color(0.035,0.035,0.075,1),Accent=color(0.45,0.35,1,1),   Accent2=color(0.15,0.85,0.85,1), Outline=color(0.16,0.16,0.27,1), Risk=color(1,0.3,0.4,1) },
+    ["Quantum Frost"]   = { Font=color(0.05,0.08,0.12,1),Main=color(0.90,0.95,0.99,1),  Background=color(0.97,0.99,1,1),      Accent=color(0.0,0.5,1,1),     Accent2=color(0.1,0.9,0.85,1), Outline=color(0.72,0.8,0.88,1),  Risk=color(0.85,0.1,0.2,1) },
+    ["Hive Chlorophyll"]= { Font=color(0.92,1,0.9,1),   Main=color(0.05,0.09,0.045,1),  Background=color(0.03,0.055,0.028,1), Accent=color(0.4,1,0.15,1),    Accent2=color(0.85,1,0.2,1),  Outline=color(0.14,0.22,0.11,1), Risk=color(1,0.3,0.25,1) },
+    ["Obelisk Gold"]    = { Font=color(1,0.97,0.88,1),  Main=color(0.07,0.06,0.04,1),   Background=color(0.04,0.035,0.02,1),  Accent=color(1,0.82,0.25,1),   Accent2=color(1,0.95,0.6,1),  Outline=color(0.22,0.19,0.1,1),  Risk=color(1,0.25,0.2,1) },
+    ["Voidglass"]       = { Font=color(0.9,0.9,0.96,1), Main=color(0.06,0.06,0.075,1),  Background=color(0.035,0.035,0.045,1),Accent=color(0.55,0.5,0.95,1), Accent2=color(0.75,0.7,1,1),  Outline=color(0.17,0.17,0.21,1), Risk=color(1,0.3,0.35,1) },
+    ["Solthari Dawn"]   = { Font=color(1,0.95,0.93,1),  Main=color(0.11,0.06,0.07,1),   Background=color(0.07,0.035,0.045,1), Accent=color(1,0.55,0.35,1),   Accent2=color(1,0.8,0.35,1),  Outline=color(0.25,0.15,0.15,1), Risk=color(1,0.25,0.3,1) },
+    ["Abyssal Teal"]    = { Font=color(0.88,0.98,0.97,1),Main=color(0.04,0.08,0.085,1), Background=color(0.02,0.05,0.055,1),  Accent=color(0.1,0.85,0.75,1), Accent2=color(0.05,0.5,0.9,1), Outline=color(0.1,0.19,0.19,1),  Risk=color(1,0.3,0.32,1) },
+    ["Prism Drift"]     = { Font=color(1,1,1,1),        Main=color(0.06,0.06,0.07,1),   Background=color(0.035,0.035,0.045,1),
+                             Accent=function() return Library.CurrentRainbowColor end,
+                             Accent2=function() return hsv_to_rgb((Library.Hue + 0.5) % 1, 0.85, 1) end,
+                             Outline=color(0.17,0.17,0.19,1), Risk=color(1,0.3,0.3,1) },
+    ["Custom"]          = { Font=color(1,1,1,1), Main=color(0.07,0.07,0.09,1), Background=color(0.04,0.04,0.055,1),
+                             Accent=color(0.1,0.8,1,1), Accent2=color(0.6,0.2,1,1), Outline=color(0.16,0.16,0.2,1), Risk=color(1,0.2,0.2,1) },
+}
+
+function Library:ApplyTheme(name, instant)
+    local t = self.Themes[name]
+    if not t then return end
+    self.CurrentThemeName = name
+
+    local target = {
+        FontColor = t.Font, MainColor = t.Main, BackgroundColor = t.Background,
+        AccentColor = t.Accent, Accent2Color = t.Accent2 or t.Accent,
+        OutlineColor = t.Outline, RiskColor = t.Risk or self.RiskColor,
+    }
+
+    if instant then
+        for k, v in pairs(target) do self[k] = v end
+        self.ThemeTween = nil
+    else
+        self.ThemeTween = {
+            from = {
+                FontColor = self.FontColor, MainColor = self.MainColor, BackgroundColor = self.BackgroundColor,
+                AccentColor = resolve_color(self.AccentColor), Accent2Color = resolve_color(self.Accent2Color),
+                OutlineColor = self.OutlineColor, RiskColor = self.RiskColor,
+            },
+            to = target, t = 0,
+        }
+    end
+    self:Notify("Theme calibrated: " .. name, 3)
+end
+
+function Library:RandomizeTheme()
+    local base_hue = math.random()
+    local accent = hsv_to_rgb(base_hue, 0.8, 1)
+    local accent2 = hsv_to_rgb((base_hue + 0.14) % 1, 0.75, 1)
+    local dark = math.random(35, 90) / 1000
+    local main = color(dark, dark, dark + 0.015, 1)
+    local bg = color(dark * 0.55, dark * 0.55, dark * 0.62, 1)
+    local outline = color(dark + 0.09, dark + 0.09, dark + 0.11, 1)
+    Library.Themes.Custom = {
+        Font = color(1, 1, 1, 1), Main = main, Background = bg,
+        Accent = accent, Accent2 = accent2, Outline = outline, Risk = color(1, 0.28, 0.3, 1),
+    }
+    Library:ApplyTheme("Custom", false)
+end
+
+--------------------------------------------------------------------------
+--  Element method mixins (unchanged responsibilities)
+--------------------------------------------------------------------------
+
+local ElementMethods = {}
+function ElementMethods:OnChanged(func) self.OnChangedFunc = func; return self end
+function ElementMethods:SetTooltip(text) self.Tooltip = text; return self end
+
+local function CreateElement(base, methods)
+    if type(methods) == "table" then
+        for k, v in pairs(methods) do base[k] = v end
+    end
+    return setmetatable(base, { __index = ElementMethods })
+end
+
+local ToggleMethods = {}
+function ToggleMethods:SetValue(val)
+    self.Value = val
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+end
+
+local SliderMethods = {}
+function SliderMethods:SetValue(val)
+    local rounded_val = tonumber(string.format("%." .. (self.Rounding or 0) .. "f", val))
+    self.Value = math.clamp(rounded_val, self.Min, self.Max)
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+end
+
+local DropdownMethods = {}
+function DropdownMethods:SetValue(val)
+    self.Value = val
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+end
+
+local InputMethods = {}
+function InputMethods:SetValue(val)
+    self.Value = val
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+end
+
+local KeyPickerMethods = {}
+function KeyPickerMethods:SetValue(val)
+    self.Value = val
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+end
+function KeyPickerMethods:GetState() return self.State end
+
+local ColorPickerMethods = {}
+function ColorPickerMethods:SetValue(val)
+    self.Value = val
+    if self.Callback then self.Callback(self.Value) end
+    if self.OnChangedFunc then self.OnChangedFunc(self.Value) end
+    local h, s, v = rgb_to_hsv(val)
+    self.Hue, self.Saturation, self.ValueHSV = h, s, v
+    self.Alpha = val.a
+end
+
+--------------------------------------------------------------------------
+--  Window / Tab / Groupbox / Element construction
+--------------------------------------------------------------------------
+
+function Library:CreateWindow(config)
+    local window = {
+        Title = config.Title or "Window",
+        Pos = config.Center and vector2(get_screen_size().x / 2 - (config.Size.x / 2), get_screen_size().y / 2 - (config.Size.y / 2)) or vector2(175, 50),
+        Size = config.Size or vector2(640, 540),
+        Visible = config.AutoShow or false,
+        Tabs = {},
+        ActiveTab = nil,
+    }
+
+    function window:AddTab(name)
+        local tab = { Name = name, Parent = window, Groupboxes = {} }
+
+        function tab:AddLeftGroupbox(name, info) return self:AddGroupbox({ Name = name, Side = "Left", Dependencies = info and info.Dependencies or nil }) end
+        function tab:AddRightGroupbox(name, info) return self:AddGroupbox({ Name = name, Side = "Right", Dependencies = info and info.Dependencies or nil }) end
+
+        function tab:AddGroupbox(info)
+            local groupbox = { Name = info.Name, Side = info.Side or "Left", Parent = tab, Elements = {}, Dependencies = info.Dependencies }
+
+            function groupbox:IsVisible()
+                if not self.Dependencies then return true end
+                for _, dep in ipairs(self.Dependencies) do
+                    if dep[1] and dep[1].Value ~= dep[2] then return false end
+                end
+                return true
+            end
+
+            function groupbox:AddToggle(id, info)
+                local el = CreateElement({ Id=id, Type="Toggle", Text=info.Text, Value=info.Default or false, Callback=info.Callback, Height=24, Tooltip=info.Tooltip, Risky=info.Risky, AnimT = (info.Default and 1 or 0) }, ToggleMethods)
+                table.insert(self.Elements, el); Library.Toggles[id] = el; return el
+            end
+            function groupbox:AddSlider(id, info)
+                local el = CreateElement({ Id=id, Type="Slider", Text=info.Text, Value=info.Default or 0, Min=info.Min or 0, Max=info.Max or 100, Rounding=info.Rounding or 0, Suffix=info.Suffix or "", Callback=info.Callback, Height=44, Tooltip=info.Tooltip }, SliderMethods)
+                table.insert(self.Elements, el); Library.Options[id] = el; return el
+            end
+            function groupbox:AddButton(info)
+                local el = { Type="Button", Text=info.Text, Func=info.Func, Height=26, DoubleClick=info.DoubleClick, LastClick=0, Tooltip=info.Tooltip }
+                table.insert(self.Elements, el); return el
+            end
+            function groupbox:AddDropdown(id, info)
+                local el = CreateElement({ Id=id, Type="Dropdown", Text=info.Text, Value = info.Multi and (info.Default or {}) or (info.Default and info.Values[info.Default] or info.Values[1]), Values=info.Values, Open=false, Callback=info.Callback, Height=47, Multi=info.Multi, Tooltip=info.Tooltip }, DropdownMethods)
+                table.insert(self.Elements, el); Library.Options[id] = el; return el
+            end
+            function groupbox:AddInput(id, info)
+                local el = CreateElement({ Id=id, Type="Input", Text=info.Text, Value=info.Default or "", Placeholder=info.Placeholder or "", Callback=info.Callback, Height=52, Tooltip=info.Tooltip }, InputMethods)
+                table.insert(self.Elements, el); Library.Options[id] = el; return el
+            end
+            function groupbox:AddKeyPicker(id, info)
+                local el = CreateElement({ Id=id, Type="KeyPicker", Text=info.Text, Value=info.Default or "...", Mode=info.Mode or "Toggle", State=false, Callback=info.Callback, Picking=false, Height=52, Tooltip=info.Tooltip }, KeyPickerMethods)
+                table.insert(self.Elements, el); Library.Options[id] = el; table.insert(Library.Keybinds, el); return el
+            end
+            function groupbox:AddColorPicker(id, info)
+                local val = info.Default or color(1, 1, 1, 1)
+                local h, s, v = rgb_to_hsv(val)
+                local el = CreateElement({ Id=id, Type="ColorPicker", Text=info.Text, Value=val, Open=false, Callback=info.Callback, Height=52, Hue=h, Saturation=s, ValueHSV=v, Alpha=val.a, EnableAlpha=info.EnableAlpha, Tooltip=info.Tooltip }, ColorPickerMethods)
+                table.insert(self.Elements, el); Library.Options[id] = el; return el
+            end
+            function groupbox:AddDivider(height) local el = { Type="Divider", Height=height or 14 }; table.insert(self.Elements, el); return el end
+            function groupbox:AddLabel(text) local el = { Type="Label", Text=text, Height=20 }; table.insert(self.Elements, el); return el end
+
+            function groupbox:AddThemeGallery()
+                local window_ref = self.Parent.Parent
+                local avail_w = get_group_inner_width(window_ref)
+                local card_w, card_h, gap = 104, 58, 8
+                local names = {}
+                for n, _ in pairs(Library.Themes) do table.insert(names, n) end
+                table.sort(names)
+                local columns = math.max(1, math.floor((avail_w + gap) / (card_w + gap)))
+                local rows = math.ceil(#names / columns)
+                local height = rows * (card_h + gap) - gap + 6
+                local el = { Type = "ThemeGallery", Height = height, Names = names, Columns = columns, CardW = card_w, CardH = card_h, Gap = gap }
+                table.insert(self.Elements, el); return el
+            end
+
+            table.insert(self.Groupboxes, groupbox); return groupbox
+        end
+
+        table.insert(self.Tabs, tab)
+        if not self.ActiveTab then self.ActiveTab = tab end
+        return tab
+    end
+
+    table.insert(Library.Windows, window)
+    return window
+end
+
+function Library:Notify(text, duration)
+    table.insert(self.Notifications, { Text = text, Duration = duration or 5, StartTime = get_unixtime(), Alpha = 0, TargetAlpha = 1, SlideX = 40 })
+end
+function Library:SetWatermark(text) self.Watermark.Text = text; self.Watermark.Visible = true end
+
+--------------------------------------------------------------------------
+--  Tooltip
+--------------------------------------------------------------------------
+
+local function render_tooltip()
+    if Library.Tooltip and Library.Tooltip.Text then
+        local mouse_pos = input.get_mouse_position()
+        local text_size = render.get_text_size(Library.Tooltip.Text)
+        local tooltip_size = vector2(text_size.x + 14, text_size.y + 10)
+        local tooltip_pos = mouse_pos:add(vector2(16, 16))
+
+        render.add_rect_filled(tooltip_pos:add(vector2(2, 2)), tooltip_pos:add(tooltip_size):add(vector2(2, 2)), color(0, 0, 0, 0.35), 4)
+        draw_chamfered_filled(tooltip_pos, tooltip_size, 4, Library.MainColor)
+        draw_chamfered_outline(tooltip_pos, tooltip_size, 4, Library.AccentColor, 1)
+        render.add_text(tooltip_pos:add(vector2(7, 5)), Library.Tooltip.Text, Library.FontColor)
+    end
+end
+
+--------------------------------------------------------------------------
+--  Main render loop
+--------------------------------------------------------------------------
+
+hook.add("render", "xenotech_ui_render", function()
+    local mouse_pos, mouse_pressed, mouse_down = input.get_mouse_position(), input.is_key_pressed(0x01), input.key_down(0x01)
+    local r_mouse_pressed = input.is_key_pressed(0x02)
+
+    if Library.ActiveKeyPicker then
+        for key, name in pairs(KEY_NAMES) do
+            if input.is_key_pressed(key) then
+                Library.ActiveKeyPicker.obj:SetValue(name)
+                Library.ActiveKeyPicker.obj.Picking = false
+                Library.ActiveKeyPicker = nil
+                Library:Notify("Key bound to " .. name)
+                break
+            end
+        end
+    elseif Library.ActiveInput then
+        for key, char in pairs(CHAR_MAP_NORMAL) do
+            if input.is_key_pressed(key) then
+                if input.key_down(0x10) and CHAR_MAP_SHIFT[key] then char = CHAR_MAP_SHIFT[key] end
+                Library.ActiveInput:SetValue(Library.ActiveInput.Value .. char)
+            end
+        end
+        if input.is_key_pressed(0x08) then
+            local str = Library.ActiveInput.Value
+            if #str > 0 then Library.ActiveInput:SetValue(string.sub(str, 1, -2)) end
+        end
+    end
+
+    for _, bind in ipairs(Library.Keybinds) do
+        local key_code = KEY_CODES[bind.Value]
+        if key_code then
+            if bind.Mode == "Always" then bind.State = true
+            elseif bind.Mode == "Hold" then bind.State = input.key_down(key_code)
+            elseif bind.Mode == "Toggle" then
+                if input.is_key_pressed(key_code) then bind.State = not bind.State end
+            end
+        end
+    end
+
+    Library.Hue = (Library.Hue + 0.0022) % 1
+    Library.CurrentRainbowColor = hsv_to_rgb(Library.Hue, 0.8, 1)
+
+    if Library.ThemeTween then
+        local tw = Library.ThemeTween
+        tw.t = math.min(tw.t + 0.07, 1)
+        local eased = ease_out_cubic(tw.t)
+        for k, target_v in pairs(tw.to) do
+            if type(target_v) ~= "function" then
+                Library[k] = lerp_color(tw.from[k], target_v, eased)
+            else
+                Library[k] = target_v
+            end
+        end
+        if tw.t >= 1 then Library.ThemeTween = nil end
+    end
+
+    local function get_accent() if type(Library.AccentColor) == "function" then return Library.AccentColor() end; return Library.AccentColor end
+    local function get_accent2() if type(Library.Accent2Color) == "function" then return Library.Accent2Color() end; return Library.Accent2Color end
+    local accent = get_accent()
+    local accent2 = get_accent2()
+    local pulse = 0.5 + 0.5 * math.sin(get_unixtime() * 5)
+    local hex_spin = (get_unixtime() * 12) % 360
+
+    Library.ModalOpen = Library.OpenedDropdown or Library.ActiveColorPicker or Library.ActiveKeyPicker or Library.ActiveInput or Library.OpenedKeybindMenu
+
+    if mouse_pressed and Library.ModalOpen then
+        if Library.OpenedDropdown and not (is_mouse_in_rect(Library.OpenedDropdown.Layout.pos, Library.OpenedDropdown.Layout.size) or is_mouse_in_rect(Library.OpenedDropdown.Layout.list_pos, Library.OpenedDropdown.Layout.list_size)) then
+            Library.OpenedDropdown.Open = false; Library.OpenedDropdown = nil
+        end
+        if Library.ActiveColorPicker and not is_mouse_in_rect(Library.ActiveColorPicker.layout.picker_pos, Library.ActiveColorPicker.layout.picker_size) then
+            Library.ActiveColorPicker.obj.Open = false; Library.ActiveColorPicker = nil
+        end
+        if Library.ActiveKeyPicker and not is_mouse_in_rect(Library.ActiveKeyPicker.layout.pos, Library.ActiveKeyPicker.layout.size) then
+            Library.ActiveKeyPicker.obj.Picking = false; Library.ActiveKeyPicker = nil
+        end
+        if Library.ActiveInput and not is_mouse_in_rect(Library.ActiveInput.layout.pos, Library.ActiveInput.layout.size) then
+            Library.ActiveInput = nil
+        end
+        if Library.OpenedKeybindMenu and not is_mouse_in_rect(Library.OpenedKeybindMenu.pos, Library.OpenedKeybindMenu.size) then
+            Library.OpenedKeybindMenu = nil
+        end
+    end
+
+    if Library.DraggingWindow then
+        if mouse_down then Library.DraggingWindow.Pos = mouse_pos:subtract(Library.DragOffset) else Library.DraggingWindow = nil end
+    end
+    if Library.ActiveSlider then
+        if mouse_down then
+            local s, l = Library.ActiveSlider.obj, Library.ActiveSlider.layout
+            local r = (math.clamp(mouse_pos.x, l.pos.x, l.pos.x + l.size.x) - l.pos.x) / l.size.x
+            local v = s.Min + (s.Max - s.Min) * r
+            if s.Value ~= v then s:SetValue(v) end
+        else
+            Library.ActiveSlider = nil
+        end
+    end
+
+    if Library.ActiveColorPicker and mouse_down then
+        local cp = Library.ActiveColorPicker.obj; local layout = Library.ActiveColorPicker.layout
+        if is_mouse_in_rect(layout.sv_pos, layout.sv_size) then
+            cp.Saturation = math.clamp((mouse_pos.x - layout.sv_pos.x) / layout.sv_size.x, 0, 1)
+            cp.ValueHSV = 1 - math.clamp((mouse_pos.y - layout.sv_pos.y) / layout.sv_size.y, 0, 1)
+            cp:SetValue(hsv_to_rgb(cp.Hue, cp.Saturation, cp.ValueHSV, cp.Alpha))
+        elseif is_mouse_in_rect(layout.hue_pos, layout.hue_size) then
+            cp.Hue = math.clamp((mouse_pos.y - layout.hue_pos.y) / layout.hue_size.y, 0, 1)
+            cp:SetValue(hsv_to_rgb(cp.Hue, cp.Saturation, cp.ValueHSV, cp.Alpha))
+        elseif cp.EnableAlpha and is_mouse_in_rect(layout.alpha_pos, layout.alpha_size) then
+            cp.Alpha = math.clamp((mouse_pos.x - layout.alpha_pos.x) / layout.alpha_size.x, 0, 1)
+            cp:SetValue(hsv_to_rgb(cp.Hue, cp.Saturation, cp.ValueHSV, cp.Alpha))
+        end
+    end
+
+    local watermark_label = string.upper(Library.Watermark.Text)
+    local watermark_size = vector2(render.get_text_size(watermark_label).x + 34, 22)
+    if not Library.DraggingWatermark and mouse_pressed and is_mouse_in_rect(Library.Watermark.Pos, watermark_size) then
+        Library.DraggingWatermark = true; Library.DragOffset = mouse_pos:subtract(Library.Watermark.Pos)
+    end
+    if Library.DraggingWatermark then
+        if mouse_down then Library.Watermark.Pos = mouse_pos:subtract(Library.DragOffset) else Library.DraggingWatermark = false end
+    end
+
+    local can_interact = not Library.ModalOpen
+    Library.Tooltip = nil
+
+    if menu_active() then
+        for _, window in ipairs(Library.Windows) do
+            if window.Visible then
+                -- energy halo + drop shadow
+                glow_rect_outline(window.Pos, window.Size, accent, 3, 0.10, 3)
+                for i = 3, 1, -1 do
+                    local off = i * 2
+                    local sp = window.Pos:add(vector2(off, off))
+                    render.add_rect_filled(sp, sp:add(window.Size), color(0, 0, 0, 0.05 * i), 0)
+                end
+
+                -- chamfered hull + targeting brackets
+                draw_chamfered_filled(window.Pos, window.Size, 16, Library.MainColor)
+                draw_chamfered_outline(window.Pos, window.Size, 16, accent, 1)
+                draw_corner_brackets(window.Pos, window.Size, accent2, 16, 2, 5)
+
+                -- title bar
+                local title_pos, title_size = window.Pos, vector2(window.Size.x, TITLE_H)
+                if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(title_pos, title_size) and not Library.ModalOpen then
+                    Library.DraggingWindow, Library.DragOffset = window, mouse_pos:subtract(window.Pos)
+                end
+                for i = 0, TITLE_H - 2 do
+                    local lt = i / (TITLE_H - 2)
+                    render.add_line(window.Pos:add(vector2(2, 1 + i)), window.Pos:add(vector2(window.Size.x - 2, 1 + i)), lerp_color(Library.BackgroundColor, Library.MainColor, lt), 1)
+                end
+                local core_center = window.Pos:add(vector2(18, TITLE_H / 2))
+                draw_hex_outline(core_center, 9, color(accent2.r, accent2.g, accent2.b, 0.35), 1, hex_spin)
+                draw_hex_filled(core_center, 5 + pulse * 1.3, accent2, hex_spin)
+                render.add_text(window.Pos:add(vector2(32, 8)), spaced_text(string.upper(window.Title)), Library.FontColor)
+                local theme_tag = string.upper(Library.CurrentThemeName)
+                local tag_size = render.get_text_size(theme_tag)
+                render.add_text(window.Pos:add(vector2(window.Size.x - tag_size.x - 14, 8)), theme_tag, Library.OutlineColor)
+                render.add_line(window.Pos:add(vector2(4, TITLE_H - 1)), window.Pos:add(vector2(window.Size.x - 4, TITLE_H - 1)), color(accent.r, accent.g, accent.b, 0.4), 1)
+
+                -- body: left icon rail + content panel
+                local body_pos = window.Pos:add(vector2(0, TITLE_H))
+                local body_size = window.Size:subtract(vector2(0, TITLE_H))
+                render.add_rect_filled(body_pos, body_pos:add(vector2(RAIL_W, body_size.y)), Library.BackgroundColor, 0)
+                draw_grid_pattern(body_pos, vector2(RAIL_W, body_size.y), Library.OutlineColor, 22)
+                render.add_line(body_pos:add(vector2(RAIL_W, 0)), body_pos:add(vector2(RAIL_W, body_size.y)), Library.OutlineColor, 1)
+
+                local rail_y = 14
+                for _, tab in ipairs(window.Tabs) do
+                    local is_active = (window.ActiveTab == tab)
+                    local hex_center = body_pos:add(vector2(RAIL_W / 2, rail_y + 20))
+                    local hit_pos, hit_size = vector2(hex_center.x - 20, hex_center.y - 20), vector2(40, 40)
+                    local hovered = is_mouse_in_rect(hit_pos, hit_size)
+
+                    if is_active then
+                        render.add_rect_filled(body_pos:add(vector2(0, rail_y)), body_pos:add(vector2(3, rail_y + 40)), accent, 0)
+                        draw_hex_outline(hex_center, 25, color(accent.r, accent.g, accent.b, 0.25 + 0.15 * pulse), 1, 0)
+                    end
+                    draw_hex_filled(hex_center, 19, is_active and Library.MainColor or (hovered and Library.MainColor or Library.BackgroundColor), 0)
+                    draw_hex_outline(hex_center, 19, is_active and accent or Library.OutlineColor, is_active and 2 or 1, 0)
+
+                    local abbr = string.upper(string.sub(tab.Name, 1, 2))
+                    local abbr_size = render.get_text_size(abbr)
+                    render.add_text(vector2(hex_center.x - abbr_size.x / 2, hex_center.y - abbr_size.y / 2), abbr, is_active and accent or Library.FontColor)
+
+                    if hovered then Library.Tooltip = { Text = tab.Name } end
+                    if not Library.DraggingWindow and mouse_pressed and hovered and can_interact then window.ActiveTab = tab end
+
+                    rail_y = rail_y + 40 + 12
+                end
+
+                local content_area_pos = body_pos:add(vector2(RAIL_W + CONTENT_PAD, CONTENT_PAD))
+                local content_area_size = vector2(body_size.x - RAIL_W - CONTENT_PAD * 2, body_size.y - CONTENT_PAD * 2)
+                draw_grid_pattern(content_area_pos, content_area_size, Library.OutlineColor, 28)
+
+                if window.ActiveTab then
+                    local left_y, right_y = 0, 0
+                    for _, groupbox in ipairs(window.ActiveTab.Groupboxes) do
+                        if groupbox:IsVisible() then
+                            local group_w = get_group_width(window)
+                            local side_offset = (groupbox.Side == "Left") and 0 or (group_w + COL_GAP)
+                            local y_offset = (groupbox.Side == "Left") and left_y or right_y
+
+                            local group_pos = content_area_pos:add(vector2(side_offset, y_offset))
+                            local current_y = 26
+                            for _, e in ipairs(groupbox.Elements) do current_y = current_y + e.Height end
+                            local group_size = vector2(group_w, current_y + 6)
+
+                            draw_chamfered_filled(group_pos, group_size, 9, Library.BackgroundColor)
+                            draw_chamfered_outline(group_pos, group_size, 9, Library.OutlineColor, 1)
+                            render.add_rect_filled(group_pos:add(vector2(1, 1)), group_pos:add(vector2(4, group_size.y - 1)), accent, 0)
+                            render.add_text(group_pos:add(vector2(10, 7)), "// " .. string.upper(groupbox.Name), Library.FontColor)
+
+                            local element_y = 26
+                            for _, element in ipairs(groupbox.Elements) do
+                                local element_pos = group_pos:add(vector2(8, element_y))
+                                local element_full_width_size = vector2(group_size.x - 16, element.Height)
+                                if is_mouse_in_rect(element_pos, element_full_width_size) and element.Tooltip then
+                                    Library.Tooltip = { Text = element.Tooltip, Element = element }
+                                end
+
+                                if element.Type == "Toggle" then
+                                    local target_t = element.Value and 1 or 0
+                                    element.AnimT = (element.AnimT or target_t) + (target_t - (element.AnimT or target_t)) * 0.35
+                                    local track_pos, track_size = element_pos:add(vector2(0, 3)), vector2(30, 15)
+                                    draw_chamfered_filled(track_pos, track_size, 4, Library.MainColor)
+                                    draw_chamfered_outline(track_pos, track_size, 4, lerp_color(Library.OutlineColor, accent, element.AnimT), 1)
+                                    local core_x = track_pos.x + 7 + (track_size.x - 14) * element.AnimT
+                                    local core_center = vector2(core_x, track_pos.y + track_size.y / 2)
+                                    if element.AnimT > 0.05 then
+                                        draw_hex_outline(core_center, 7.5, color(accent.r, accent.g, accent.b, 0.3 * element.AnimT), 1, hex_spin)
+                                    end
+                                    draw_hex_filled(core_center, 4.5, lerp_color(Library.OutlineColor, accent, element.AnimT), 0)
+                                    draw_hex_outline(core_center, 4.5, Library.Black, 1, 0)
+                                    render.add_text(element_pos:add(vector2(38, 2)), element.Text, element.Risky and Library.RiskColor or Library.FontColor)
+                                    if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(element_pos, vector2(group_size.x - 16, 18)) and can_interact then
+                                        element:SetValue(not element.Value)
+                                    end
+
+                                elseif element.Type == "Slider" then
+                                    local s_pos, s_size = element_pos:add(vector2(0, 20)), vector2(group_size.x - 16, 15)
+                                    render.add_text(element_pos, element.Text, Library.FontColor)
+                                    draw_chamfered_filled(s_pos, s_size, 5, Library.MainColor)
+                                    local ratio = (element.Value - element.Min) / (element.Max - element.Min)
+                                    local fill_w = math.max(s_size.x * ratio, 14)
+                                    for i = 0, fill_w - 1 do
+                                        local lt = i / math.max(fill_w - 1, 1)
+                                        render.add_line(s_pos:add(vector2(i, 1)), s_pos:add(vector2(i, s_size.y - 1)), lerp_color(accent, accent2, lt), 1)
+                                    end
+                                    for p = 0, 2 do
+                                        local phase = (get_unixtime() * 0.5 + p / 3) % 1
+                                        local px = s_pos.x + fill_w * phase
+                                        if px >= s_pos.x + 2 and px <= s_pos.x + fill_w - 2 then
+                                            render.add_circle(vector2(px, s_pos.y + s_size.y / 2), 1.6, Library.FontColor, 1)
+                                        end
+                                    end
+                                    draw_chamfered_outline(s_pos, s_size, 5, Library.OutlineColor, 1)
+                                    local val_text = tostring(element.Value) .. element.Suffix
+                                    local val_size = render.get_text_size(val_text)
+                                    render.add_text(s_pos:add(vector2(s_size.x - val_size.x - 6, 1)), val_text, Library.FontColor)
+                                    if not Library.DraggingWindow and not Library.ActiveSlider and mouse_pressed and is_mouse_in_rect(s_pos, s_size) and can_interact then
+                                        Library.ActiveSlider = { obj = element, layout = { pos = s_pos, size = s_size } }
+                                    end
+
+                                elseif element.Type == "Button" then
+                                    local b_pos, b_size = element_pos, vector2(group_size.x - 16, 22)
+                                    local hovered = is_mouse_in_rect(b_pos, b_size)
+                                    draw_chamfered_filled(b_pos, b_size, 6, hovered and not mouse_down and lerp_color(Library.MainColor, accent, 0.22) or Library.MainColor)
+                                    draw_chamfered_outline(b_pos, b_size, 6, hovered and accent or Library.OutlineColor, 1)
+                                    if hovered then draw_corner_brackets(b_pos, b_size, accent, 6, 1, 2) end
+                                    local text_to_render = element.Text
+                                    if element.DoubleClick and element.LastClick ~= 0 and get_unixtime() - element.LastClick < 1 then text_to_render = "Confirm?" end
+                                    local clip_text = get_clipped_text(text_to_render, b_size.x - 10)
+                                    local ct_size = render.get_text_size(clip_text)
+                                    render.add_text(b_pos:add(vector2(b_size.x/2 - ct_size.x/2, b_size.y/2 - ct_size.y/2)), clip_text, Library.FontColor)
+                                    if not Library.DraggingWindow and mouse_pressed and hovered and can_interact then
+                                        if element.DoubleClick then
+                                            if element.LastClick ~= 0 and get_unixtime() - element.LastClick < 1 then
+                                                if element.Func then element.Func() end
+                                                element.LastClick = 0
+                                            else
+                                                element.LastClick = get_unixtime()
+                                            end
+                                        else
+                                            if element.Func then element.Func() end
+                                        end
+                                    end
+
+                                elseif element.Type == "Dropdown" then
+                                    render.add_text(element_pos, element.Text, Library.FontColor)
+                                    local d_pos, d_size = element_pos:add(vector2(0, 17)), vector2(group_size.x - 16, 22)
+                                    element.Layout = { pos = d_pos, size = d_size }
+                                    draw_chamfered_filled(d_pos, d_size, 6, Library.MainColor)
+                                    draw_chamfered_outline(d_pos, d_size, 6, element.Open and accent or Library.OutlineColor, 1)
+                                    if element.Open then draw_corner_brackets(d_pos, d_size, accent, 6, 1, 2) end
+                                    local display_text
+                                    if element.Multi then
+                                        local selected = {}
+                                        for k, v in pairs(element.Value) do if v then table.insert(selected, k) end end
+                                        display_text = #selected > 0 and table.concat(selected, ", ") or "None"
+                                    else
+                                        display_text = tostring(element.Value)
+                                    end
+                                    render.add_text(d_pos:add(vector2(8, 4)), get_clipped_text(display_text, d_size.x - 26), Library.FontColor)
+                                    local chevron_c = d_pos:add(vector2(d_size.x - 15, d_size.y/2))
+                                    if element.Open then
+                                        render.add_triangle_filled(chevron_c:add(vector2(-4, 2)), chevron_c:add(vector2(4, 2)), chevron_c:add(vector2(0, -4)), accent)
+                                    else
+                                        render.add_triangle_filled(chevron_c:add(vector2(-4, -2)), chevron_c:add(vector2(4, -2)), chevron_c:add(vector2(0, 4)), Library.FontColor)
+                                    end
+                                    if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(d_pos, d_size) and can_interact then
+                                        element.Open = not element.Open
+                                        Library.OpenedDropdown = element.Open and element or nil
+                                    end
+
+                                elseif element.Type == "Input" then
+                                    render.add_text(element_pos, element.Text, Library.FontColor)
+                                    local i_pos, i_size = element_pos:add(vector2(0, 17)), vector2(group_size.x - 16, 22)
+                                    element.layout = { pos = i_pos, size = i_size }
+                                    local is_active = Library.ActiveInput == element
+                                    draw_chamfered_filled(i_pos, i_size, 6, Library.MainColor)
+                                    draw_chamfered_outline(i_pos, i_size, 6, is_active and accent or Library.OutlineColor, is_active and 2 or 1)
+                                    if is_active then draw_corner_brackets(i_pos, i_size, accent, 6, 1, 2) end
+                                    local d_text = #element.Value > 0 and element.Value or element.Placeholder
+                                    local text_color = #element.Value > 0 and Library.FontColor or lerp_color(Library.FontColor, Library.MainColor, 0.5)
+                                    render.add_text(i_pos:add(vector2(8, 4)), get_clipped_text(d_text, i_size.x - 14), text_color)
+                                    if is_active and (math.floor(get_unixtime() * 2) % 2 == 0) then
+                                        local text_width = render.get_text_size(get_clipped_text(element.Value, i_size.x - 14)).x
+                                        render.add_line(i_pos:add(vector2(8 + text_width, 5)), i_pos:add(vector2(8 + text_width, i_size.y - 5)), Library.FontColor, 1)
+                                    end
+                                    if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(i_pos, i_size) then Library.ActiveInput = element end
+
+                                elseif element.Type == "KeyPicker" then
+                                    render.add_text(element_pos, element.Text, Library.FontColor)
+                                    local k_pos, k_size = element_pos:add(vector2(0, 17)), vector2(group_size.x - 16, 22)
+                                    element.layout = { pos = k_pos, size = k_size }
+                                    local border_c = element.Picking and lerp_color(accent, Library.FontColor, pulse * 0.3) or Library.OutlineColor
+                                    draw_chamfered_filled(k_pos, k_size, 6, Library.MainColor)
+                                    draw_chamfered_outline(k_pos, k_size, 6, border_c, element.Picking and 2 or 1)
+                                    if element.Picking then draw_corner_brackets(k_pos, k_size, accent, 6, 1, 2) end
+                                    local text = element.Picking and "..." or ("[" .. element.Value .. "]")
+                                    local t_size = render.get_text_size(text)
+                                    render.add_text(k_pos:add(vector2(k_size.x/2 - t_size.x/2, k_size.y/2 - t_size.y/2)), text, Library.FontColor)
+                                    if not Library.DraggingWindow and is_mouse_in_rect(k_pos, k_size) and can_interact then
+                                        if mouse_pressed then
+                                            element.Picking = true; Library.ActiveKeyPicker = { obj = element, layout = element.layout }
+                                        elseif r_mouse_pressed then
+                                            Library.OpenedKeybindMenu = { obj = element, pos = mouse_pos, size = vector2(64, 52) }
+                                        end
+                                    end
+
+                                elseif element.Type == "ColorPicker" then
+                                    render.add_text(element_pos, element.Text, Library.FontColor)
+                                    local c_pos, c_size = element_pos:add(vector2(0, 17)), vector2(group_size.x - 16, 22)
+                                    element.layout = { pos = c_pos, size = c_size }
+                                    if element.EnableAlpha then draw_checkerboard(c_pos:add(vector2(2, 2)), c_size:subtract(vector2(4, 4)), 5) end
+                                    render.add_rect_filled(c_pos:add(vector2(2, 2)), c_pos:add(c_size):subtract(vector2(2, 2)), element.Value, 3)
+                                    draw_chamfered_outline(c_pos, c_size, 6, element.Open and accent or Library.OutlineColor, element.Open and 2 or 1)
+                                    if element.Open then draw_corner_brackets(c_pos, c_size, accent, 6, 1, 2) end
+                                    if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(c_pos, c_size) and can_interact then
+                                        element.Open = not element.Open
+                                        Library.ActiveColorPicker = element.Open and { obj = element, layout = element.layout } or nil
+                                    end
+
+                                elseif element.Type == "Divider" then
+                                    local div_y = element_pos.y + element.Height/2
+                                    render.add_line(vector2(element_pos.x, div_y), vector2(element_pos.x + group_size.x - 16, div_y), Library.OutlineColor, 1)
+                                    draw_hex_filled(vector2(element_pos.x + (group_size.x - 16)/2, div_y), 3, accent, 0)
+
+                                elseif element.Type == "Label" then
+                                    render.add_text(element_pos:add(vector2(0, 3)), "// " .. element.Text, Library.FontColor)
+
+                                elseif element.Type == "ThemeGallery" then
+                                    for idx, name in ipairs(element.Names) do
+                                        local col = (idx - 1) % element.Columns
+                                        local row = math.floor((idx - 1) / element.Columns)
+                                        local card_pos = element_pos:add(vector2(col * (element.CardW + element.Gap), row * (element.CardH + element.Gap)))
+                                        local card_size = vector2(element.CardW, element.CardH)
+                                        local theme = Library.Themes[name]
+                                        local is_current = (Library.CurrentThemeName == name)
+                                        local hovered = is_mouse_in_rect(card_pos, card_size)
+
+                                        draw_chamfered_filled(card_pos, card_size, 6, Library.MainColor)
+                                        local border_c = is_current and accent or (hovered and lerp_color(Library.OutlineColor, accent, 0.5) or Library.OutlineColor)
+                                        draw_chamfered_outline(card_pos, card_size, 6, border_c, is_current and 2 or 1)
+                                        if is_current then draw_corner_brackets(card_pos, card_size, accent, 6, 1, 2) end
+
+                                        local chip_colors = { resolve_color(theme.Main), resolve_color(theme.Accent), resolve_color(theme.Accent2 or theme.Accent) }
+                                        for i = 1, 3 do
+                                            local cx = card_pos.x + 16 + (i - 1) * 18
+                                            local cy = card_pos.y + 18
+                                            draw_hex_filled(vector2(cx, cy), 8, chip_colors[i], 0)
+                                            draw_hex_outline(vector2(cx, cy), 8, Library.Black, 1, 0)
+                                        end
+
+                                        local label = get_clipped_text(name, element.CardW - 12)
+                                        render.add_text(card_pos:add(vector2(6, 32)), label, is_current and accent or Library.FontColor)
+                                        if is_current then render.add_text(card_pos:add(vector2(6, 44)), "ACTIVE", Library.OutlineColor) end
+
+                                        if hovered and mouse_pressed and can_interact and not Library.DraggingWindow then
+                                            Library:ApplyTheme(name, false)
+                                        end
+                                    end
+                                end
+
+                                element_y = element_y + element.Height
+                            end
+
+                            if groupbox.Side == "Left" then left_y = left_y + group_size.y + 10 else right_y = right_y + group_size.y + 10 end
+                        end
+                    end
+                end
+
+                -- animated scan sweep across the content area
+                local sweep_y = body_pos.y + ((get_unixtime() * 40) % body_size.y)
+                render.add_line(vector2(body_pos.x + RAIL_W, sweep_y), vector2(body_pos.x + body_size.x - 2, sweep_y), color(accent.r, accent.g, accent.b, 0.10), 1)
+            end
+        end
+    end
+
+    -- Dropdown popup list
+    if Library.OpenedDropdown then
+        local e = Library.OpenedDropdown
+        local list_pos = e.Layout.pos:add(vector2(0, e.Layout.size.y + 3))
+        local list_height = math.min(#e.Values, 6) * 18 + 4
+        local list_size = vector2(e.Layout.size.x, list_height)
+        e.Layout.list_pos, e.Layout.list_size = list_pos, list_size
+
+        draw_chamfered_filled(list_pos, list_size, 6, Library.MainColor)
+        draw_chamfered_outline(list_pos, list_size, 6, accent, 1)
+
+        local item_y = 2
+        for _, value in ipairs(e.Values) do
+            local item_pos, item_size = list_pos:add(vector2(2, item_y)), vector2(list_size.x - 4, 18)
+            local is_selected = (e.Multi and e.Value[value]) or (e.Value == value)
+            local text_color = is_selected and accent or Library.FontColor
+            local hovered = is_mouse_in_rect(item_pos, item_size)
+
+            if hovered then
+                render.add_rect_filled(item_pos, item_pos:add(item_size), lerp_color(Library.MainColor, accent, 0.35), 0)
+                text_color = Library.FontColor
+                if mouse_pressed then
+                    if e.Multi then
+                        e.Value[value] = not e.Value[value]
+                        e:SetValue(e.Value)
+                    else
+                        e:SetValue(value); e.Open = false; Library.OpenedDropdown = nil
+                    end
+                end
+            elseif is_selected then
+                render.add_rect_filled(item_pos, item_pos:add(item_size), lerp_color(Library.MainColor, accent, 0.12), 0)
+            end
+            render.add_text(item_pos:add(vector2(6, 1)), value, text_color)
+            item_y = item_y + 18
+        end
+    end
+
+    -- Right-click keybind mode menu
+    if Library.OpenedKeybindMenu then
+        local menu = Library.OpenedKeybindMenu
+        local modes = { "Toggle", "Hold", "Always" }
+        local menu_h = #modes * 18 + 4
+        menu.size = vector2(64, menu_h)
+
+        draw_chamfered_filled(menu.pos, menu.size, 6, Library.MainColor)
+        draw_chamfered_outline(menu.pos, menu.size, 6, accent, 1)
+
+        local item_y = 2
+        for _, mode in ipairs(modes) do
+            local item_pos, item_size = menu.pos:add(vector2(2, item_y)), vector2(menu.size.x - 4, 18)
+            local is_selected = menu.obj.Mode == mode
+            local text_color = is_selected and accent or Library.FontColor
+            if is_mouse_in_rect(item_pos, item_size) then
+                render.add_rect_filled(item_pos, item_pos:add(item_size), lerp_color(Library.MainColor, accent, 0.35), 0)
+                text_color = Library.FontColor
+                if mouse_pressed then menu.obj.Mode = mode; Library.OpenedKeybindMenu = nil end
+            end
+            render.add_text(item_pos:add(vector2(6, 1)), mode, text_color)
+            item_y = item_y + 18
+        end
+    end
+
+    -- Color picker panel
+    if Library.ActiveColorPicker then
+        local e = Library.ActiveColorPicker.obj
+        local pad, sv_w, sv_h, hue_w, input_h, gap, alpha_h = 6, 120, 120, 15, 20, 6, 12
+        local content_start_y = 26
+        local total_w = pad + sv_w + gap + hue_w + pad
+        local total_h = content_start_y + pad + sv_h + gap + input_h + gap + alpha_h + pad
+        local picker_size = vector2(total_w, total_h)
+        local picker_pos = e.layout.pos:add(vector2(0, e.layout.size.y + 3))
+        e.layout.picker_pos, e.layout.picker_size = picker_pos, picker_size
+
+        draw_chamfered_filled(picker_pos, picker_size, 6, color(0.10, 0.10, 0.11, 1))
+        draw_chamfered_outline(picker_pos, picker_size, 6, accent, 1)
+        render.add_rect_filled(picker_pos:add(vector2(2,2)), picker_pos:add(vector2(picker_size.x-2, 24)), Library.MainColor, 0)
+        render.add_text(picker_pos:add(vector2(7, 5)), e.Text, Library.FontColor)
+
+        local sv_pos = picker_pos:add(vector2(pad, content_start_y + pad))
+        local sv_size = vector2(sv_w, sv_h)
+        local hue_pos = sv_pos:add(vector2(sv_w + gap, 0))
+        local hue_size = vector2(hue_w, sv_h)
+        e.layout.sv_pos, e.layout.sv_size, e.layout.hue_pos, e.layout.hue_size = sv_pos, sv_size, hue_pos, hue_size
+
+        local hue_color = hsv_to_rgb(e.Hue, 1, 1)
+        render.add_rect_filled(sv_pos, sv_pos:add(sv_size), color(1, 1, 1, 1), 0)
+        for i = 0, sv_size.x - 1 do render.add_line(sv_pos:add(vector2(i, 0)), sv_pos:add(vector2(i, sv_size.y)), color(hue_color.r, hue_color.g, hue_color.b, i / sv_size.x), 1) end
+        for i = 0, sv_size.y - 1 do render.add_line(sv_pos:add(vector2(0, i)), sv_pos:add(vector2(sv_size.x, i)), color(0, 0, 0, i / sv_size.y), 1) end
+        render.add_rect(sv_pos, sv_pos:add(sv_size), Library.Black, 0, 1)
+
+        local cursor_x = sv_pos.x + sv_size.x * e.Saturation
+        local cursor_y = sv_pos.y + sv_size.y * (1 - e.ValueHSV)
+        render.add_circle(vector2(cursor_x, cursor_y), 4, color(1, 1, 1, 1), 1)
+        render.add_circle(vector2(cursor_x, cursor_y), 3, color(0, 0, 0, 1), 1)
+
+        for i = 0, hue_size.y - 1 do render.add_line(hue_pos:add(vector2(0, i)), hue_pos:add(vector2(hue_size.x, i)), hsv_to_rgb(i / hue_size.y, 1, 1), 1) end
+        render.add_rect(hue_pos, hue_pos:add(hue_size), Library.Black, 0, 1)
+        local hue_cursor_y = hue_pos.y + hue_size.y * e.Hue
+        render.add_rect(vector2(hue_pos.x - 1, hue_cursor_y - 2), vector2(hue_pos.x + hue_size.x + 1, hue_cursor_y + 2), color(1, 1, 1, 1), 0, 1)
+
+        local inputs_y = content_start_y + pad + sv_h + gap
+        local hex_w = (total_w - 2 * pad - gap) * 0.4
+        local rgb_w = (total_w - 2 * pad - gap) * 0.6
+        local hex_pos = picker_pos:add(vector2(pad, inputs_y))
+        local hex_size = vector2(hex_w, input_h)
+        render.add_rect_filled(hex_pos, hex_pos:add(hex_size), color(0.08, 0.08, 0.08, 1), 0)
+        render.add_rect(hex_pos, hex_pos:add(hex_size), Library.OutlineColor, 0, 1)
+        local hex_str = string.format("#%02X%02X%02X", math.floor(e.Value.r * 255), math.floor(e.Value.g * 255), math.floor(e.Value.b * 255))
+        render.add_text(hex_pos:add(vector2(4, 3)), hex_str, Library.FontColor)
+
+        local rgb_pos = hex_pos:add(vector2(hex_w + gap, 0))
+        local rgb_size = vector2(rgb_w, input_h)
+        render.add_rect_filled(rgb_pos, rgb_pos:add(rgb_size), color(0.08, 0.08, 0.08, 1), 0)
+        render.add_rect(rgb_pos, rgb_pos:add(rgb_size), Library.OutlineColor, 0, 1)
+        local rgb_str = string.format("%d, %d, %d", math.floor(e.Value.r * 255), math.floor(e.Value.g * 255), math.floor(e.Value.b * 255))
+        render.add_text(rgb_pos:add(vector2(4, 3)), rgb_str, Library.FontColor)
+
+        local alpha_y = inputs_y + input_h + gap
+        local alpha_pos = picker_pos:add(vector2(pad, alpha_y))
+        local alpha_size = vector2(total_w - 2 * pad, alpha_h)
+        e.layout.alpha_pos, e.layout.alpha_size = alpha_pos, alpha_size
+
+        draw_checkerboard(alpha_pos, alpha_size, 4)
+        if e.EnableAlpha then
+            local solid_color = hsv_to_rgb(e.Hue, e.Saturation, e.ValueHSV)
+            for i = 0, alpha_size.x - 1 do
+                render.add_line(alpha_pos:add(vector2(i, 0)), alpha_pos:add(vector2(i, alpha_size.y)), color(solid_color.r, solid_color.g, solid_color.b, i / alpha_size.x), 1)
+            end
+            local alpha_cursor_x = alpha_pos.x + alpha_size.x * e.Alpha
+            render.add_rect(vector2(alpha_cursor_x - 1, alpha_pos.y), vector2(alpha_cursor_x + 1, alpha_pos.y + alpha_size.y), color(1, 1, 1, 1), 0, 1)
+        else
+            render.add_rect_filled(alpha_pos, alpha_pos:add(alpha_size), e.Value, 0)
+        end
+        render.add_rect(alpha_pos, alpha_pos:add(alpha_size), Library.Black, 0, 1)
+    end
+
+    -- Notifications: incoming transmissions, sliding in from the top-right
+    local screen = get_screen_size()
+    local notification_y = 40
+    for i = #Library.Notifications, 1, -1 do
+        local notif = Library.Notifications[i]
+        local time_passed = get_unixtime() - notif.StartTime
+        if time_passed > notif.Duration then notif.TargetAlpha = 0 end
+        notif.Alpha = notif.Alpha + (notif.TargetAlpha - notif.Alpha) * 0.12
+        notif.SlideX = (notif.SlideX or 40) * 0.8
+
+        if notif.TargetAlpha == 0 and notif.Alpha < 0.01 then
+            table.remove(Library.Notifications, i)
+        else
+            local display_text = "> " .. notif.Text
+            local notif_size = vector2(render.get_text_size(display_text).x + 30, 26)
+            local notif_pos = vector2(screen.x - notif_size.x - 16 + notif.SlideX, notification_y)
+
+            draw_chamfered_filled(notif_pos, notif_size, 6, color(Library.MainColor.r, Library.MainColor.g, Library.MainColor.b, notif.Alpha))
+            draw_chamfered_outline(notif_pos, notif_size, 6, color(Library.OutlineColor.r, Library.OutlineColor.g, Library.OutlineColor.b, notif.Alpha), 1)
+            draw_hex_filled(notif_pos:add(vector2(15, notif_size.y / 2)), 6, color(accent.r, accent.g, accent.b, notif.Alpha), hex_spin)
+            render.add_text(notif_pos:add(vector2(28, 6)), display_text, color(Library.FontColor.r, Library.FontColor.g, Library.FontColor.b, notif.Alpha))
+
+            notification_y = notification_y + notif_size.y + 6
+        end
+    end
+
+    -- Watermark: status readout badge
+    if Library.Watermark.Visible then
+        local pos = Library.Watermark.Pos
+        local label = string.upper(Library.Watermark.Text)
+        local size = vector2(render.get_text_size(label).x + 34, 22)
+
+        draw_chamfered_filled(pos, size, 6, Library.MainColor)
+        draw_chamfered_outline(pos, size, 6, accent, 1)
+        local core = pos:add(vector2(15, size.y / 2))
+        draw_hex_outline(core, 7, color(accent.r, accent.g, accent.b, 0.35), 1, hex_spin)
+        draw_hex_filled(core, 4 + pulse * 1.3, accent, hex_spin)
+        render.add_text(pos:add(vector2(26, 5)), label, Library.FontColor)
+    end
+
+    render_tooltip()
+end)
+
+--------------------------------------------------------------------------
+--  Demo build
+--------------------------------------------------------------------------
+
+local Window = Library:CreateWindow({ Title = "Xenotech UI", Center = true, AutoShow = true, Size = vector2(800, 640) })
+local Tabs = {
+    Console     = Window:AddTab("Console"),
+    Modules     = Window:AddTab("Modules"),
+    Calibration = Window:AddTab("Calibration"),
+}
+
+-- Console -------------------------------------------------------------------
+local Left = Tabs.Console:AddLeftGroupbox("Toggles & Sliders")
+Left:AddToggle("MyToggle", { Text = "This is a toggle", Default = true, Tooltip = "A simple toggle switch.", Risky = true })
+    :OnChanged(function(val) Library:Notify("Toggle changed: " .. tostring(val)) end)
+Left:AddSlider("MySlider", { Text = "This is my slider!", Default = 5, Min = 0, Max = 10, Rounding = 1, Suffix = "m", Tooltip = "Adjust the value by dragging." })
+    :OnChanged(function(val) Library:Notify("Slider changed: " .. tostring(val)) end)
+Left:AddDivider()
+Left:AddKeyPicker("MyKeyPicker", { Text = "Key Picker", Default = "F", Tooltip = "Click to set a new key." })
+    :OnChanged(function(val) Library:Notify("KeyPicker changed: " .. tostring(val)) end)
+Left:AddColorPicker("MyColorPicker", { Text = "Color Picker", Default = color(0.2, 0.5, 1, 0.5), EnableAlpha = true, Tooltip = "Click to open the color palette." })
+    :OnChanged(function(val) Library:Notify("ColorPicker changed") end)
+
+local Right = Tabs.Console:AddRightGroupbox("Buttons & More")
+Right:AddButton({ Text = "Click me!", Func = function() Library:Notify("Button clicked!") end, Tooltip = "A standard button." })
+Right:AddButton({ Text = "Double Click!", Func = function() Library:Notify("Button double-clicked!") end, DoubleClick = true, Tooltip = "You must click this twice quickly." })
+Right:AddDropdown("MyDropdown", { Text = "A dropdown", Default = 1, Values = { "Option 1", "Option 2", "Option 3" }, Tooltip = "Select one option." })
+    :OnChanged(function(val) Library:Notify("Dropdown changed: " .. tostring(val)) end)
+Right:AddInput("MyInput", { Text = "A Textbox", Default = "Hello", Placeholder = "Enter text...", Tooltip = "A text input field." })
+    :OnChanged(function(val) Library:Notify("Input changed: " .. val) end)
+
+local DepToggle = Tabs.Console:AddLeftGroupbox("Dependencies"):AddToggle("DepToggle", { Text = "Enable Dependent Controls", Default = false })
+local DepGroup = Tabs.Console:AddLeftGroupbox("Dependent Group", { Dependencies = { { Library.Toggles.DepToggle, true } } })
+DepGroup:AddLabel("This group only appears when the toggle is on.")
+DepGroup:AddButton({ Text = "Dependent Button", Func = function() Library:Notify("Dependency Met!") end })
+
+-- Modules ---------------------------------------------------------------
+local MultiGroup = Tabs.Modules:AddLeftGroupbox("Multi-Select & Modes")
+MultiGroup:AddDropdown("MyMultiDropdown", { Text = "Multi-Select", Default = { ["Choice 1"] = true }, Values = { "Choice 1", "Choice 2", "Choice 3" }, Multi = true, Tooltip = "Select multiple options." })
+    :OnChanged(function(val)
+        local selected = {}
+        for k, v in pairs(val) do if v then table.insert(selected, k) end end
+        Library:Notify("Multi-Dropdown changed: " .. table.concat(selected, ", "))
+    end)
+MultiGroup:AddKeyPicker("HoldKey", { Text = "Hold-mode Keybind", Default = "Ctrl", Mode = "Hold", Tooltip = "Right-click to change mode." })
+MultiGroup:AddSlider("Sensitivity", { Text = "Sensitivity", Default = 50, Min = 0, Max = 100, Suffix = "%" })
+
+local InfoGroup = Tabs.Modules:AddRightGroupbox("Notes")
+InfoGroup:AddLabel("Every control here reacts live to whatever theme")
+InfoGroup:AddLabel("is calibrated in the Calibration tab.")
+InfoGroup:AddDivider()
+InfoGroup:AddButton({ Text = "Fire a Notification", Func = function() Library:Notify("Hello from Xenotech UI!") end })
+
+-- Calibration ----------------------------------------------------------------
+local ThemeGroup = Tabs.Calibration:AddLeftGroupbox("Theme Gallery")
+ThemeGroup:AddLabel("Click a swatch to apply it instantly.")
+ThemeGroup:AddThemeGallery()
+
+local CustomGroup = Tabs.Calibration:AddRightGroupbox("Custom Theme Builder")
+CustomGroup:AddColorPicker("CustomAccent", { Text = "Accent", Default = Library.Themes.Custom.Accent })
+    :OnChanged(function(val) Library.Themes.Custom.Accent = val; if Library.CurrentThemeName == "Custom" then Library.AccentColor = val end end)
+CustomGroup:AddColorPicker("CustomAccent2", { Text = "Accent 2", Default = Library.Themes.Custom.Accent2 })
+    :OnChanged(function(val) Library.Themes.Custom.Accent2 = val; if Library.CurrentThemeName == "Custom" then Library.Accent2Color = val end end)
+CustomGroup:AddColorPicker("CustomMain", { Text = "Panel", Default = Library.Themes.Custom.Main })
+    :OnChanged(function(val) Library.Themes.Custom.Main = val; if Library.CurrentThemeName == "Custom" then Library.MainColor = val end end)
+CustomGroup:AddColorPicker("CustomBackground", { Text = "Background", Default = Library.Themes.Custom.Background })
+    :OnChanged(function(val) Library.Themes.Custom.Background = val; if Library.CurrentThemeName == "Custom" then Library.BackgroundColor = val end end)
+CustomGroup:AddButton({ Text = "Apply Custom Theme", Func = function() Library:ApplyTheme("Custom", false) end })
+CustomGroup:AddButton({ Text = "Randomize Palette", Func = function() Library:RandomizeTheme() end })
+
+local SaveGroup = Tabs.Calibration:AddRightGroupbox("Configuration")
+SaveGroup:AddInput("ConfigName", { Text = "Config Name", Default = "default" })
+SaveGroup:AddButton({ Text = "Save", Func = function()
+    local name = Library.Options.ConfigName.Value
+    if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
+    local config_data = { __theme = Library.CurrentThemeName }
+    for id, obj in pairs(Library.Toggles) do config_data[id] = { value = obj.Value } end
+    for id, obj in pairs(Library.Options) do
+        if obj.Type == "ColorPicker" then
+            config_data[id] = { value = { r = obj.Value.r, g = obj.Value.g, b = obj.Value.b, a = obj.Value.a } }
+        else
+            config_data[id] = { value = obj.Value }
+        end
+    end
+    file.write(name .. ".json", table_to_JSON(config_data))
+    Library:Notify("Config '" .. name .. "' saved!", 5)
+end })
+SaveGroup:AddButton({ Text = "Load", Func = function()
+    local name = Library.Options.ConfigName.Value
+    if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
+    local file_name = name .. ".json"
+    if not file.exists(file_name) then Library:Notify("Config '" .. name .. "' not found.", 5); return end
+    local config_data = JSON_to_table(file.read(file_name))
+    if config_data.__theme then Library:ApplyTheme(config_data.__theme, true) end
+    for id, data in pairs(config_data) do
+        if id ~= "__theme" then
+            local element = Library.Toggles[id] or Library.Options[id]
+            if element then
+                if element.Type == "ColorPicker" then
+                    element:SetValue(color(data.value.r, data.value.g, data.value.b, data.value.a))
+                else
+                    element:SetValue(data.value)
+                end
+            end
+        end
+    end
+    Library:Notify("Config '" .. name .. "' loaded!", 5)
+end })
+
+Library:ApplyTheme("Vortessence", true)
