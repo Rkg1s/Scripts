@@ -1,33 +1,3 @@
-spawn(function()
-    while not _G.ui_ready do wait(100) end
-    
-    local UI = {}
-    UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
-    UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
-    UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
-    UI.height_on = { get_value = function() return _G.UI.height_on.Value end }
-    UI.ping_on = { get_value = function() return _G.UI.ping_on.Value end }
-    UI.offset_s = { get_value = function() return _G.UI.offset_s.Value end }
-    UI.default_s = { get_value = function() return _G.UI.default_s.Value end }
-    UI.wingchun_counter = { get_value = function() return _G.UI.wingchun_counter.Value end }
-    UI.wingchun_keybind = { get_state = function() return _G.UI.wingchun_keybind.State end }
-    UI.dodge_m2 = { get_value = function() return _G.UI.dodge_m2.Value end }
-    UI.dodge_m1 = { get_value = function() return _G.UI.dodge_m1.Value end }
-    UI.dodge_range_s = { get_value = function() return _G.UI.dodge_range_s.Value end }
-    UI.smart_offset_on = { get_value = function() return _G.UI.smart_offset_on.Value end }
-    UI.smart_offset_mode = { get_value = function() return _G.UI.smart_offset_mode.Value end }
-    UI.window_s = { get_value = function() return _G.UI.window_s.Value end }
-    UI.show_esp = { get_value = function() return _G.UI.show_esp.Value end }
-    UI.show_dodge_esp = { get_value = function() return _G.UI.show_dodge_esp.Value end }
-    UI.mark_rng = { get_value = function() return _G.UI.mark_rng.Value end }
-    UI.mark_gate = { get_value = function() return _G.UI.mark_gate.Value end }
-    UI.facing_them = { get_value = function() return _G.UI.facing_them.Value end }
-    UI.facing_me = { get_value = function() return _G.UI.facing_me.Value end }
-    UI.cone_s = { get_value = function() return _G.UI.cone_s.Value end }
-    UI.log_unknown = { get_value = function() return _G.UI.log_unknown.Value end }
-    UI.debug_on = { get_value = function() return _G.UI.debug_on.Value end }
-    UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
-    
 hook.remove("render", "perpetual")
 gui.remove("perpetual")
 gui.remove("Gakuran V2")
@@ -40,7 +10,7 @@ local RUN_ID = _G.__perpetual_run
 local Colors = {}
 local Const = {}
 local Anims = {}
-local UI = {}
+local UI = {} -- This will be populated later after the UI loads
 local Settings = {}
 local S = {} -- State
 
@@ -357,7 +327,7 @@ end
 
 function update_smart_offset(now)
     if not UI.smart_offset_on:get_value() then return end
-    if now - S.SmartOffset.last_adjust < 3000 then return end -- Increased cooldown to 3s to reduce log spam
+    if now - S.SmartOffset.last_adjust < 3000 then return end
     
     local mode_idx = UI.smart_offset_mode:get_value()
     local mode = LEARNING_MODES[mode_idx] or LEARNING_MODES[0]
@@ -435,72 +405,11 @@ function update_smart_offset(now)
     end
 end
 
-spawn(function()
-    while not _G.ui_ready do wait(100) end
-    
-    UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
-    UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
-    UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
-    UI.height_on = { get_value = function() return _G.UI.height_on.Value end }
-    UI.ping_on = { get_value = function() return _G.UI.ping_on.Value end }
-    UI.offset_s = { get_value = function() return _G.UI.offset_s.Value end }
-    UI.default_s = { get_value = function() return _G.UI.default_s.Value end }
-    UI.wingchun_counter = { get_value = function() return _G.UI.wingchun_counter.Value end }
-    UI.wingchun_keybind = { get_state = function() return _G.UI.wingchun_keybind.State end }
-    UI.dodge_m2 = { get_value = function() return _G.UI.dodge_m2.Value end }
-    UI.dodge_m1 = { get_value = function() return _G.UI.dodge_m1.Value end }
-    UI.dodge_range_s = { get_value = function() return _G.UI.dodge_range_s.Value end }
-    UI.smart_offset_on = { get_value = function() return _G.UI.smart_offset_on.Value end }
-    UI.smart_offset_mode = { get_value = function() return _G.UI.smart_offset_mode.Value end }
-    UI.window_s = { get_value = function() return _G.UI.window_s.Value end }
-    UI.show_esp = { get_value = function() return _G.UI.show_esp.Value end }
-    UI.show_dodge_esp = { get_value = function() return _G.UI.show_dodge_esp.Value end }
-    UI.mark_rng = { get_value = function() return _G.UI.mark_rng.Value end }
-    UI.mark_gate = { get_value = function() return _G.UI.mark_gate.Value end }
-    UI.facing_them = { get_value = function() return _G.UI.facing_them.Value end }
-    UI.facing_me = { get_value = function() return _G.UI.facing_me.Value end }
-    UI.cone_s = { get_value = function() return _G.UI.cone_s.Value end }
-    UI.log_unknown = { get_value = function() return _G.UI.log_unknown.Value end }
-    UI.debug_on = { get_value = function() return _G.UI.debug_on.Value end }
-    UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
-    
-    spawn(function()
-        while _G.__perpetual_run == RUN_ID do
-            main_loop(get_tickcount())
-            wait(main_tick_ms)
-        end
-        block_end()
-    end)
-end)
-
 -- ================= settings persistence =================
 Settings.File = "perpetual_settings.json"
-Settings.Items = {
-    { key = "parry_on", label = "Auto Parry", w = UI.parry_on, def = true },
-    { key = "wingchun_counter", label = "WingChun M2 Counter (R)", w = UI.wingchun_counter, def = false },
-    { key = "wingchun_keybind", label = "Counter Toggle Key", w = UI.wingchun_keybind, def = 0x00 },
-    { key = "dodge_m2", label = "Dodge M2", w = UI.dodge_m2, def = true },
-    { key = "dodge_m1", label = "Dodge M1", w = UI.dodge_m1, def = false },
-    { key = "facing_them", label = "They Face Me", w = UI.facing_them, def = false },
-    { key = "facing_me", label = "I Face Them", w = UI.facing_me, def = false },
-    { key = "height_on", label = "Height Adjust", w = UI.height_on, def = true },
-    { key = "ping_on", label = "Adaptive Ping", w = UI.ping_on, def = true },
-    { key = "show_dodge_esp", label = "Show Dodge Range", w = UI.show_dodge_esp, def = true },
-    { key = "log_unknown", label = "Log Unknown IDs", w = UI.log_unknown, def = false },
-    { key = "debug_on", label = "Debug Log", w = UI.debug_on, def = false },
-    { key = "show_esp", label = "Show Range", w = UI.show_esp, def = true },
-    { key = "mark_rng", label = "Mark In Range", w = UI.mark_rng, def = true },
-    { key = "mark_gate", label = "Mark Angle Only", w = UI.mark_gate, def = false },
-    { key = "smart_offset_on", label = "Enable Smart Offset", w = UI.smart_offset_on, def = false },
-    { key = "range_s", label = "Range", w = UI.range_s, def = Const.AutoParryRange },
-    { key = "dodge_range_s", label = "Dodge Range", w = UI.dodge_range_s, def = Const.M2DodgeRange },
-    { key = "window_s", label = "Parry Window (ms)", w = UI.window_s, def = Const.ParryWindowMs },
-    { key = "offset_s", label = "Timing Offset (ms)", w = UI.offset_s, def = Const.ParryOffsetMs },
-    { key = "default_s", label = "Default Parry Time (ms)", w = UI.default_s, def = Const.DefaultParryTimeMs },
-    { key = "cone_s", label = "Face Cone", w = UI.cone_s, def = 160 },
-    { key = "vert_s", label = "Vertical Range", w = UI.vert_s, def = 8 },
-    { key = "smart_offset_mode", label = "Learning Method", w = UI.smart_offset_mode, def = 0 },
-}
+
+-- We define these as empty tables for now, they will be populated after the UI loads
+Settings.Items = {}
 
 local function settings_save()
     local t = {}
@@ -516,7 +425,7 @@ local function settings_save()
     local ok, err = pcall(function()
         file.overwrite(Settings.File, table_to_JSON(t))
     end)
-    if not ok and UI.debug_on:get_value() then
+    if not ok and UI.debug_on and UI.debug_on:get_value() then
         log.add("[settings] save failed: " .. tostring(err), Colors.RED)
     end
     return ok
@@ -532,9 +441,9 @@ local function settings_load()
         local v = data[e.key]
         if type(v) == "number" then 
             if e.def == true or e.def == false then
-                set_ui_value(e.label, v ~= 0) 
+                if e.w.set_value then e.w:set_value(v ~= 0) end
             else
-                set_ui_value(e.label, v) 
+                if e.w.set_value then e.w:set_value(v) end
             end
         end
     end
@@ -556,8 +465,6 @@ local function setup_callbacks()
         end
     end
 end
-
-setup_callbacks()
 
 -- ================= state =================
 S.AnimRegistry = {}
@@ -1442,7 +1349,9 @@ end
 -- ================= copy-unknown implementation =================
 reset_settings = function()
     is_loading = true
-    for _, e in ipairs(Settings.Items) do set_ui_value(e.label, e.def) end
+    for _, e in ipairs(Settings.Items) do 
+        if e.w.set_value then e.w:set_value(e.def) end
+    end
     is_loading = false
     settings_save()
     
@@ -1491,61 +1400,97 @@ local function main_loop(now)
     end
 end
 
+-- Wait for Xenotech UI to be ready, then populate UI table and start the loop
 spawn(function()
-    while _G.__perpetual_run == RUN_ID do
-        main_loop(get_tickcount())
-        wait(main_tick_ms)
+    while not _G.ui_ready do wait(100) end
+    
+    -- Map Xenotech UI elements to the format your script expects
+    UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
+    UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
+    UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
+    UI.height_on = { get_value = function() return _G.UI.height_on.Value end }
+    UI.ping_on = { get_value = function() return _G.UI.ping_on.Value end }
+    UI.offset_s = { get_value = function() return _G.UI.offset_s.Value end }
+    UI.default_s = { get_value = function() return _G.UI.default_s.Value end }
+    UI.wingchun_counter = { get_value = function() return _G.UI.wingchun_counter.Value end }
+    UI.wingchun_keybind = { get_state = function() return _G.UI.wingchun_keybind.State end }
+    UI.dodge_m2 = { get_value = function() return _G.UI.dodge_m2.Value end }
+    UI.dodge_m1 = { get_value = function() return _G.UI.dodge_m1.Value end }
+    UI.dodge_range_s = { get_value = function() return _G.UI.dodge_range_s.Value end }
+    UI.smart_offset_on = { get_value = function() return _G.UI.smart_offset_on.Value end }
+    UI.smart_offset_mode = { get_value = function() return _G.UI.smart_offset_mode.Value end }
+    UI.window_s = { get_value = function() return _G.UI.window_s.Value end }
+    UI.show_esp = { get_value = function() return _G.UI.show_esp.Value end }
+    UI.show_dodge_esp = { get_value = function() return _G.UI.show_dodge_esp.Value end }
+    UI.mark_rng = { get_value = function() return _G.UI.mark_rng.Value end }
+    UI.mark_gate = { get_value = function() return _G.UI.mark_gate.Value end }
+    UI.facing_them = { get_value = function() return _G.UI.facing_them.Value end }
+    UI.facing_me = { get_value = function() return _G.UI.facing_me.Value end }
+    UI.cone_s = { get_value = function() return _G.UI.cone_s.Value end }
+    UI.log_unknown = { get_value = function() return _G.UI.log_unknown.Value end }
+    UI.debug_on = { get_value = function() return _G.UI.debug_on.Value end }
+    UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
+    
+    -- Now populate Settings.Items so saving/loading works
+    Settings.Items = {
+        { key = "parry_on", w = UI.parry_on, def = true },
+        { key = "wingchun_counter", w = UI.wingchun_counter, def = false },
+        { key = "dodge_m2", w = UI.dodge_m2, def = true },
+        { key = "dodge_m1", w = UI.dodge_m1, def = false },
+        { key = "facing_them", w = UI.facing_them, def = false },
+        { key = "facing_me", w = UI.facing_me, def = false },
+        { key = "height_on", w = UI.height_on, def = true },
+        { key = "ping_on", w = UI.ping_on, def = true },
+        { key = "show_dodge_esp", w = UI.show_dodge_esp, def = true },
+        { key = "log_unknown", w = UI.log_unknown, def = false },
+        { key = "debug_on", w = UI.debug_on, def = false },
+        { key = "show_esp", w = UI.show_esp, def = true },
+        { key = "mark_rng", w = UI.mark_rng, def = true },
+        { key = "mark_gate", w = UI.mark_gate, def = false },
+        { key = "smart_offset_on", w = UI.smart_offset_on, def = false },
+        { key = "range_s", w = UI.range_s, def = Const.AutoParryRange },
+        { key = "dodge_range_s", w = UI.dodge_range_s, def = Const.M2DodgeRange },
+        { key = "window_s", w = UI.window_s, def = Const.ParryWindowMs },
+        { key = "offset_s", w = UI.offset_s, def = Const.ParryOffsetMs },
+        { key = "default_s", w = UI.default_s, def = Const.DefaultParryTimeMs },
+        { key = "cone_s", w = UI.cone_s, def = 160 },
+        { key = "vert_s", w = UI.vert_s, def = 8 },
+        { key = "smart_offset_mode", w = UI.smart_offset_mode, def = 0 },
+    }
+    setup_callbacks()
+    
+    if settings_load() then
+        log.add("[settings] loaded " .. Settings.File, Colors.CYAN)
     end
-    block_end()
+
+    -- Start the main loop
+    spawn(function()
+        while _G.__perpetual_run == RUN_ID do
+            main_loop(get_tickcount())
+            wait(main_tick_ms)
+        end
+        block_end()
+    end)
+
+    hook.add("render", "perpetual", function()
+        draw_parry_esp()
+
+        local held_str = S.KeyHeld and "  [F]" or ""
+        -- We don't have a direct reference to the status label anymore, 
+        -- so we just log it or use a notification if needed.
+        -- Library:Notify("parry=" .. tostring(UI.parry_on:get_value()) .. held_str .. string.format("  ping=%.0fms", S.TimingState.ping))
+    end)
+
+    log.add("perpetual loaded -- auto-parry", Colors.GREEN)
 end)
 
-hook.add("render", "perpetual", function()
-    draw_parry_esp()
-
-    local held_str = S.KeyHeld and "  [F]" or ""
-    UI.script_status_lbl:set_label("parry=" .. tostring(UI.parry_on:get_value()) .. held_str ..
-        string.format("  ping=%.0fms", S.TimingState.ping))
-end)
-
-if settings_load() then
-    log.add("[settings] loaded " .. Settings.File, Colors.CYAN)
-end
-
+-- Fetch Offsets
 http.get("https://raw.githubusercontent.com/Tolura/Photonation/refs/heads/main/OffsetAPI/offset.lua", function(body, status)
     if status == 200 and body then
         local chunk = load(body)
         if chunk then 
             chunk() 
             sync_offsets()
-        end
-    end
-end)
-
-log.add("perpetual loaded -- auto-parry", Colors.GREEN)
-    
-    local function main_loop(now)
-        if not _G.ui_ready then return end
-        
-        sync_offsets()
-        S.TimingState.update(now)
-        key_frame(now)
-
-        if not is_gamefocused() then return end
-
-        local my_root = get_my_root()
-        if valid(my_root) then
-            refresh_esp_targets(now, my_root)
-        else
-            S.EspTargets = {}
-        end
-
-        if UI.parry_on:get_value() then
-            scan_attackers()
-            check_local_signals()
-            S.OutcomeState.health_frame(now)
-            update_smart_offset(now)
-        else
-            block_end()
         end
     end
 end)
