@@ -1133,7 +1133,7 @@ spawn(function()
     -- TUNER TAB
     local TunerGroup = Tabs.Tuner:AddLeftGroupbox('Smart Offset Auto-Tuner')
     _G.UI.smart_offset_on = TunerGroup:AddToggle('SmartOffset', { Text = 'Enable Smart Offset', Default = false })
-    _G.UI.smart_offset_mode = TunerGroup:AddDropdown('LearnMethod', { Text = 'Learning Method', Default = 1, Values = {"Very Strict", "Strict", "Normal", "Easy"} })
+    _G.UI.smart_offset_mode = TunerGroup:AddDropdown('LearnMethod', { Text = 'Learning Method', Default = 0, Values = {"Very Strict", "Strict", "Normal", "Easy"} })
     _G.UI.window_s = TunerGroup:AddSlider('ParryWindow', { Text = 'Parry Window (ms)', Default = 150, Min = 10, Max = 300, Rounding = 0, Suffix = "ms" })
     _G.UI.smart_offset_status = TunerGroup:AddLabel("Smart Offset: Idle (0/60 samples)")
 
@@ -1191,80 +1191,3 @@ spawn(function()
     log.add("[UI] Perpetual Menu Initialized!", color(0.2, 1, 0.2, 1))
     _G.ui_ready = true
 end)
-
-local XenotechBridge = {}
-
--- Wrap a Xenotech Toggle/Slider so it acts like a Photon UI element
-local function wrap_xenotech_element(xenotech_obj)
-    if not xenotech_obj then return nil end
-    return {
-        get_value = function()
-            if xenotech_obj.Value ~= nil then return xenotech_obj.Value end
-            return false
-        end,
-        set_value = function(val)
-            if xenotech_obj.SetValue then xenotech_obj:SetValue(val) end
-        end,
-        change_callback = function(cb)
-            if xenotech_obj.OnChanged then xenotech_obj:OnChanged(cb) end
-        end,
-        -- Keep a reference to the original object for KeyPickers
-        _original = xenotech_obj
-    }
-end
-
--- Wrap a KeyPicker specifically because it needs :get_state()
-local function wrap_xenotech_keypicker(xenotech_kp)
-    if not xenotech_kp then return nil end
-    local wrapped = wrap_xenotech_element(xenotech_kp)
-    wrapped.get_state = function()
-        if xenotech_kp.GetState then return xenotech_kp:GetState() end
-        return false
-    end
-    return wrapped
-end
-
--- This function is called by your AP script to get the UI elements
-function GetPerpetualUI()
-    if not _G.Library or not _G.Library.Windows or #_G.Library.Windows == 0 then return nil end
-    
-    -- Find the main window
-    local win = _G.Library.Windows[1]
-    if not win or not win.Tabs or #win.Tabs == 0 then return nil end
-
-    -- Scan all tabs and groupboxes to find our elements
-    local elements = {}
-    for _, tab in ipairs(win.Tabs) do
-        for _, gb in ipairs(tab.Groupboxes) do
-            for _, el in ipairs(gb.Elements) do
-                if el.Id then
-                    if el.Type == "KeyPicker" then
-                        elements[el.Id] = wrap_xenotech_keypicker(el)
-                    else
-                        elements[el.Id] = wrap_xenotech_element(el)
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Also wrap the status label if it exists
-    if _G.UI and _G.UI.smart_offset_status then
-        elements["smart_offset_status"] = {
-            set_label = function(txt) 
-                if _G.UI.smart_offset_status.Text ~= nil then
-                    _G.UI.smart_offset_status.Text = txt
-                end
-            end
-        }
-    end
-
-    return elements
-end
-
--- Also expose the Notify function
-if not _G.Library.Notify then
-    _G.Library.Notify = function(text, duration) 
-        -- Fallback if Notify doesn't exist
-    end
-end
