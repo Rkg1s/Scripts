@@ -1,3 +1,8 @@
+--------------------------------------------------------------------------
+--  XENOTECH UI
+--  A from-scratch interface toolkit for the Photon render/input API.
+--------------------------------------------------------------------------
+
 math.randomseed(get_unixtime())
 
 local Library = {
@@ -16,7 +21,6 @@ local Library = {
 
     Black = color(0, 0, 0, 1),
 
-    -- live (possibly mid-tween) theme colors
     FontColor       = color(1, 1, 1, 1),
     MainColor       = color(0.109, 0.109, 0.109, 1),
     BackgroundColor = color(0.078, 0.078, 0.078, 1),
@@ -30,7 +34,7 @@ local Library = {
 }
 
 --------------------------------------------------------------------------
---  Key tables (unchanged responsibilities: key names / char maps)
+--  Key tables
 --------------------------------------------------------------------------
 
 local KEY_NAMES = {
@@ -146,7 +150,7 @@ local function draw_checkerboard(pos, size, square_size)
 end
 
 --------------------------------------------------------------------------
---  Alien-tech geometry primitives: chamfered plates, hexes, HUD brackets
+--  Alien-tech geometry primitives
 --------------------------------------------------------------------------
 
 local function chamfered_points(pos, size, chamfer)
@@ -195,8 +199,6 @@ local function draw_hex_filled(center, radius, col, rotation_deg)
     for i = 1, 6 do render.add_triangle_filled(center, pts[i], pts[(i % 6) + 1], col) end
 end
 
--- Targeting-reticle style corner brackets, drawn slightly outside (or inside,
--- via a negative inset) the given rect.
 local function draw_corner_brackets(pos, size, col, len, thickness, inset)
     inset = inset or 0; len = len or 10; thickness = thickness or 2
     local x1, y1 = pos.x - inset, pos.y - inset
@@ -211,7 +213,6 @@ local function draw_corner_brackets(pos, size, col, len, thickness, inset)
     render.add_line(vector2(x2, y2), vector2(x2, y2 - len), col, thickness)
 end
 
--- Cheap layered-outline "bloom" approximation for an energy-field glow.
 local function glow_rect_outline(pos, size, col, layers, base_alpha, spread)
     layers = layers or 3; spread = spread or 3
     for i = layers, 1, -1 do
@@ -235,7 +236,6 @@ local function draw_grid_pattern(pos, size, col, spacing)
     end
 end
 
--- Shared layout constants for the rail-based window shell
 local RAIL_W, CONTENT_PAD, COL_GAP, TITLE_H = 62, 10, 8, 32
 
 local function get_group_width(window)
@@ -314,7 +314,7 @@ function Library:RandomizeTheme()
 end
 
 --------------------------------------------------------------------------
---  Element method mixins (unchanged responsibilities)
+--  Element method mixins
 --------------------------------------------------------------------------
 
 local ElementMethods = {}
@@ -618,7 +618,6 @@ hook.add("render", "xenotech_ui_render", function()
     if menu_active() then
         for _, window in ipairs(Library.Windows) do
             if window.Visible then
-                -- energy halo + drop shadow
                 glow_rect_outline(window.Pos, window.Size, accent, 3, 0.10, 3)
                 for i = 3, 1, -1 do
                     local off = i * 2
@@ -626,12 +625,10 @@ hook.add("render", "xenotech_ui_render", function()
                     render.add_rect_filled(sp, sp:add(window.Size), color(0, 0, 0, 0.05 * i), 0)
                 end
 
-                -- chamfered hull + targeting brackets
                 draw_chamfered_filled(window.Pos, window.Size, 16, Library.MainColor)
                 draw_chamfered_outline(window.Pos, window.Size, 16, accent, 1)
                 draw_corner_brackets(window.Pos, window.Size, accent2, 16, 2, 5)
 
-                -- title bar
                 local title_pos, title_size = window.Pos, vector2(window.Size.x, TITLE_H)
                 if not Library.DraggingWindow and mouse_pressed and is_mouse_in_rect(title_pos, title_size) and not Library.ModalOpen then
                     Library.DraggingWindow, Library.DragOffset = window, mouse_pos:subtract(window.Pos)
@@ -649,7 +646,6 @@ hook.add("render", "xenotech_ui_render", function()
                 render.add_text(window.Pos:add(vector2(window.Size.x - tag_size.x - 14, 8)), theme_tag, Library.OutlineColor)
                 render.add_line(window.Pos:add(vector2(4, TITLE_H - 1)), window.Pos:add(vector2(window.Size.x - 4, TITLE_H - 1)), color(accent.r, accent.g, accent.b, 0.4), 1)
 
-                -- body: left icon rail + content panel
                 local body_pos = window.Pos:add(vector2(0, TITLE_H))
                 local body_size = window.Size:subtract(vector2(0, TITLE_H))
                 render.add_rect_filled(body_pos, body_pos:add(vector2(RAIL_W, body_size.y)), Library.BackgroundColor, 0)
@@ -902,14 +898,12 @@ hook.add("render", "xenotech_ui_render", function()
                     end
                 end
 
-                -- animated scan sweep across the content area
                 local sweep_y = body_pos.y + ((get_unixtime() * 40) % body_size.y)
                 render.add_line(vector2(body_pos.x + RAIL_W, sweep_y), vector2(body_pos.x + body_size.x - 2, sweep_y), color(accent.r, accent.g, accent.b, 0.10), 1)
             end
         end
     end
 
-    -- Dropdown popup list
     if Library.OpenedDropdown then
         local e = Library.OpenedDropdown
         local list_pos = e.Layout.pos:add(vector2(0, e.Layout.size.y + 3))
@@ -946,7 +940,6 @@ hook.add("render", "xenotech_ui_render", function()
         end
     end
 
-    -- Right-click keybind mode menu
     if Library.OpenedKeybindMenu then
         local menu = Library.OpenedKeybindMenu
         local modes = { "Toggle", "Hold", "Always" }
@@ -971,7 +964,6 @@ hook.add("render", "xenotech_ui_render", function()
         end
     end
 
-    -- Color picker panel
     if Library.ActiveColorPicker then
         local e = Library.ActiveColorPicker.obj
         local pad, sv_w, sv_h, hue_w, input_h, gap, alpha_h = 6, 120, 120, 15, 20, 6, 12
@@ -1045,7 +1037,6 @@ hook.add("render", "xenotech_ui_render", function()
         render.add_rect(alpha_pos, alpha_pos:add(alpha_size), Library.Black, 0, 1)
     end
 
-    -- Notifications: incoming transmissions, sliding in from the top-right
     local screen = get_screen_size()
     local notification_y = 40
     for i = #Library.Notifications, 1, -1 do
@@ -1071,7 +1062,6 @@ hook.add("render", "xenotech_ui_render", function()
         end
     end
 
-    -- Watermark: status readout badge
     if Library.Watermark.Visible then
         local pos = Library.Watermark.Pos
         local label = string.upper(Library.Watermark.Text)
@@ -1137,9 +1127,18 @@ spawn(function()
     local LogsGroup = Tabs.Visuals:AddRightGroupbox('Logs')
     _G.UI.log_unknown = LogsGroup:AddToggle('LogUnknown', { Text = 'Log Unknown IDs', Default = false })
     _G.UI.debug_on = LogsGroup:AddToggle('DebugLog', { Text = 'Debug Log', Default = false })
-    LogsGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
-        local ids = {}
-            LogsGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
+
+    -- CONFIG TAB (Actions)
+    local ConfigGroup = Tabs.Config:AddLeftGroupbox('Configuration')
+    ConfigGroup:AddButton({Text = 'Reset Settings', Func = function() 
+        if _G.reset_perpetual_settings then
+            _G.reset_perpetual_settings()
+            Library:Notify("Settings reset!", 5)
+        else
+            Library:Notify("Reset function not loaded yet.", 5)
+        end
+    end})
+    ConfigGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
         local ids = {}
         if _G.S and _G.S.LoggedUnknown then
             for assetId, _ in pairs(_G.S.LoggedUnknown) do
@@ -1148,38 +1147,6 @@ spawn(function()
         end
         input.set_clipboard(table.concat(ids, ","))
         Library:Notify("Copied " .. tostring(#ids) .. " unknown ids")
-    end})
-        input.set_clipboard(table.concat(ids, ","))
-        Library:Notify("Copied " .. tostring(#ids) .. " unknown ids")
-    end})
-
-    -- CONFIG TAB (Save/Load)
-    local ConfigGroup = Tabs.Config:AddLeftGroupbox('Configuration')
-    ConfigGroup:AddInput('ConfigName', {Text = "Config Name", Default = "default"})
-    ConfigGroup:AddButton({Text = 'Save Config', Func = function() 
-        local name = Library.Options.ConfigName.Value
-        if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
-        local config_data = {}
-        for id, obj in pairs(Library.Toggles) do config_data[id] = { value = obj.Value } end
-        for id, obj in pairs(Library.Options) do
-            if obj.Type ~= "ColorPicker" and obj.Type ~= "KeyPicker" and obj.Type ~= "Input" then
-                config_data[id] = { value = obj.Value }
-            end
-        end
-        file.overwrite(name .. ".json", table_to_JSON(config_data))
-        Library:Notify("Config '"..name.."' saved!", 5)
-    end})
-    ConfigGroup:AddButton({Text = 'Load Config', Func = function() 
-        local name = Library.Options.ConfigName.Value
-        if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
-        local file_name = name .. ".json"
-        if not file.exists(file_name) then Library:Notify("Config '"..name.."' not found.", 5); return end
-        local config_data = JSON_to_table(file.read(file_name))
-        for id, data in pairs(config_data) do
-            local element = Library.Toggles[id] or Library.Options[id]
-            if element then element:SetValue(data.value) end
-        end
-        Library:Notify("Config '"..name.."' loaded!", 5)
     end})
 
     log.add("[UI] Perpetual Menu Initialized!", color(0.2, 1, 0.2, 1))
@@ -1197,6 +1164,8 @@ http.get("https://raw.githubusercontent.com/Rkg1s/Scripts/refs/heads/main/gakura
         else
             log.add("[AP] Failed to compile Auto-Parry script.", color(1, 0, 0, 1))
         end
+    else
+        log.add("[AP] Failed to download Auto-Parry script.", color(1, 0, 0, 1))
     end
 end)
 
