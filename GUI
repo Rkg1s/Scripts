@@ -1,16 +1,3 @@
---------------------------------------------------------------------------
---  XENOTECH UI
---  A from-scratch interface toolkit for the Photon render/input API.
---
---  Aesthetic pass: alien-tech / far-future HUD. Every panel is a
---  chamfered (cut-corner) plate instead of a rounded rectangle,
---  focus states are drawn as targeting-reticle corner brackets,
---  toggles are glowing hex power-cells, sliders are energy conduits
---  with traveling particles, and the whole window sits inside a
---  faint scan-grid with an animated sweep line and a soft energy
---  halo. Theming is still a tweened, clickable swatch gallery.
---------------------------------------------------------------------------
-
 math.randomseed(get_unixtime())
 
 local Library = {
@@ -1190,4 +1177,23 @@ spawn(function()
 
     log.add("[UI] Perpetual Menu Initialized!", color(0.2, 1, 0.2, 1))
     _G.ui_ready = true
+end)
+
+local ap_loaded = false
+http.get("https://raw.githubusercontent.com/Rkg1s/Scripts/refs/heads/main/gakuran", function(Body, Status)
+    if Status == 200 then
+        local chunk = load(Body)
+        if chunk then
+            chunk()
+            ap_loaded = true
+            log.add("[AP] Auto-Parry script downloaded and started!", color(0.2, 1, 0.2, 1))
+        else
+            log.add("[AP] Failed to compile Auto-Parry script.", color(1, 0, 0, 1))
+        end
+    end
+end)
+
+spawn(function()
+    while not ap_loaded do wait(100) end
+    log.add("Perpetual System Fully Loaded!", color(0.2, 1, 0.2, 1))
 end)
