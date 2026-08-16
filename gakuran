@@ -435,54 +435,43 @@ function update_smart_offset(now)
     end
 end
 
--- ================= menu =================
-UI.menu = gui.create(MENU_NAME, false)
-UI.menu:set_size(410, 880)
-
-UI.menu:add_label("--- Target ---", Colors.HEADER)
-UI.parry_on = UI.menu:add_checkbox("Auto Parry", true)
-UI.wingchun_counter = UI.menu:add_checkbox("WingChun M2 Counter (R)", false)
-UI.wingchun_keybind = UI.menu:add_keybind("Counter Toggle Key", 0x00)
-
-UI.range_s = UI.menu:add_slider("Range", 5, 80, Const.AutoParryRange)
-UI.vert_s = UI.menu:add_slider("Vertical Range", 2, 40, 8)
-
-UI.menu:add_label("--- Facing ---", Colors.HEADER)
-UI.facing_them = UI.menu:add_checkbox("They Face Me", false)
-UI.facing_me = UI.menu:add_checkbox("I Face Them", false)
-UI.cone_s = UI.menu:add_slider("Face Cone", 30, 360, 160)
-
-UI.menu:add_label("--- Timing ---", Colors.HEADER)
-UI.height_on = UI.menu:add_checkbox("Height Adjust", true)
-UI.ping_on = UI.menu:add_checkbox("Adaptive Ping", true)
-UI.window_s = UI.menu:add_slider("Parry Window (ms)", 10, 300, Const.ParryWindowMs)
-UI.offset_s = UI.menu:add_slider("Timing Offset (ms)", -200, 200, Const.ParryOffsetMs)
-UI.default_s = UI.menu:add_slider("Default Parry Time (ms)", 10, 1000, Const.DefaultParryTimeMs)
-
-UI.menu:add_label("--- Smart Offset Auto-Tuner ---", Colors.HEADER)
-UI.smart_offset_on = UI.menu:add_checkbox("Enable Smart Offset", false)
-UI.smart_offset_mode = UI.menu:add_combo("Learning Method", {"Very Strict", "Strict", "Normal", "Easy"}, 0)
-UI.smart_offset_status = UI.menu:add_label("Smart Offset: Idle (0/60 samples)", Colors.CYAN)
-
-UI.menu:add_label("--- Dodge ---", Colors.HEADER)
-UI.dodge_m2 = UI.menu:add_checkbox("Dodge M2", true)
-UI.dodge_m1 = UI.menu:add_checkbox("Dodge M1", false)
-UI.dodge_range_s = UI.menu:add_slider("Dodge Range", 1, 30, Const.M2DodgeRange)
-UI.show_dodge_esp = UI.menu:add_checkbox("Show Dodge Range", true)
-
-UI.menu:add_label("--- ESP ---", Colors.HEADER)
-UI.show_esp = UI.menu:add_checkbox("Show Range", true)
-UI.mark_rng = UI.menu:add_checkbox("Mark In Range", true)
-UI.mark_gate = UI.menu:add_checkbox("Mark Angle Only", false)
-
-UI.menu:add_label("--- Logs ---", Colors.HEADER)
-UI.log_unknown = UI.menu:add_checkbox("Log Unknown IDs", false)
-UI.debug_on = UI.menu:add_checkbox("Debug Log", false)
-UI.copy_ids_btn = UI.menu:add_button("Copy Unknown IDs", function() copy_unknown_ids() end)
-
-UI.menu:add_label("--- Settings ---", Colors.HEADER)
-UI.reset_btn = UI.menu:add_button("Reset To Defaults", function() reset_settings() end)
-UI.script_status_lbl = UI.menu:add_label("Status: Idle", Colors.GREEN)
+spawn(function()
+    while not _G.ui_ready do wait(100) end
+    
+    UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
+    UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
+    UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
+    UI.height_on = { get_value = function() return _G.UI.height_on.Value end }
+    UI.ping_on = { get_value = function() return _G.UI.ping_on.Value end }
+    UI.offset_s = { get_value = function() return _G.UI.offset_s.Value end }
+    UI.default_s = { get_value = function() return _G.UI.default_s.Value end }
+    UI.wingchun_counter = { get_value = function() return _G.UI.wingchun_counter.Value end }
+    UI.wingchun_keybind = { get_state = function() return _G.UI.wingchun_keybind.State end }
+    UI.dodge_m2 = { get_value = function() return _G.UI.dodge_m2.Value end }
+    UI.dodge_m1 = { get_value = function() return _G.UI.dodge_m1.Value end }
+    UI.dodge_range_s = { get_value = function() return _G.UI.dodge_range_s.Value end }
+    UI.smart_offset_on = { get_value = function() return _G.UI.smart_offset_on.Value end }
+    UI.smart_offset_mode = { get_value = function() return _G.UI.smart_offset_mode.Value end }
+    UI.window_s = { get_value = function() return _G.UI.window_s.Value end }
+    UI.show_esp = { get_value = function() return _G.UI.show_esp.Value end }
+    UI.show_dodge_esp = { get_value = function() return _G.UI.show_dodge_esp.Value end }
+    UI.mark_rng = { get_value = function() return _G.UI.mark_rng.Value end }
+    UI.mark_gate = { get_value = function() return _G.UI.mark_gate.Value end }
+    UI.facing_them = { get_value = function() return _G.UI.facing_them.Value end }
+    UI.facing_me = { get_value = function() return _G.UI.facing_me.Value end }
+    UI.cone_s = { get_value = function() return _G.UI.cone_s.Value end }
+    UI.log_unknown = { get_value = function() return _G.UI.log_unknown.Value end }
+    UI.debug_on = { get_value = function() return _G.UI.debug_on.Value end }
+    UI.smart_offset_status = { set_label = function(txt) _G.UI.smart_offset_status.Text = txt end }
+    
+    spawn(function()
+        while _G.__perpetual_run == RUN_ID do
+            main_loop(get_tickcount())
+            wait(main_tick_ms)
+        end
+        block_end()
+    end)
+end)
 
 -- ================= settings persistence =================
 Settings.File = "perpetual_settings.json"
