@@ -1101,113 +1101,93 @@ hook.add("render", "xenotech_ui_render", function()
     render_tooltip()
 end)
 
---------------------------------------------------------------------------
---  Demo build
---------------------------------------------------------------------------
+-- PERPETUAL AUTO-PARRY MENU BUILDER
+spawn(function()
+    local Window = Library:CreateWindow({ Title = 'PERPETUAL.EXE', Center = true, AutoShow = true, Size = vector2(800, 640) })
+    local Tabs = { 
+        Combat = Window:AddTab('Combat'), 
+        Tuner = Window:AddTab('Auto-Tuner'), 
+        Visuals = Window:AddTab('Visuals'), 
+        Config = Window:AddTab('Config') 
+    }
 
-local Window = Library:CreateWindow({ Title = "Xenotech UI", Center = true, AutoShow = true, Size = vector2(800, 640) })
-local Tabs = {
-    Console     = Window:AddTab("Console"),
-    Modules     = Window:AddTab("Modules"),
-    Calibration = Window:AddTab("Calibration"),
-}
+    _G.UI = {}
 
--- Console -------------------------------------------------------------------
-local Left = Tabs.Console:AddLeftGroupbox("Toggles & Sliders")
-Left:AddToggle("MyToggle", { Text = "This is a toggle", Default = true, Tooltip = "A simple toggle switch.", Risky = true })
-    :OnChanged(function(val) Library:Notify("Toggle changed: " .. tostring(val)) end)
-Left:AddSlider("MySlider", { Text = "This is my slider!", Default = 5, Min = 0, Max = 10, Rounding = 1, Suffix = "m", Tooltip = "Adjust the value by dragging." })
-    :OnChanged(function(val) Library:Notify("Slider changed: " .. tostring(val)) end)
-Left:AddDivider()
-Left:AddKeyPicker("MyKeyPicker", { Text = "Key Picker", Default = "F", Tooltip = "Click to set a new key." })
-    :OnChanged(function(val) Library:Notify("KeyPicker changed: " .. tostring(val)) end)
-Left:AddColorPicker("MyColorPicker", { Text = "Color Picker", Default = color(0.2, 0.5, 1, 0.5), EnableAlpha = true, Tooltip = "Click to open the color palette." })
-    :OnChanged(function(val) Library:Notify("ColorPicker changed") end)
+    -- COMBAT TAB
+    local CombatGroup = Tabs.Combat:AddLeftGroupbox('Parry Settings')
+    _G.UI.parry_on = CombatGroup:AddToggle('ParryOn', { Text = 'Auto Parry', Default = true, Tooltip = "Enable auto blocking." })
+    _G.UI.range_s = CombatGroup:AddSlider('Range', { Text = 'Range', Default = 11.5, Min = 5, Max = 80, Rounding = 1, Suffix = "m" })
+    _G.UI.vert_s = CombatGroup:AddSlider('VertRange', { Text = 'Vertical Range', Default = 8, Min = 2, Max = 40, Rounding = 0, Suffix = "m" })
+    _G.UI.height_on = CombatGroup:AddToggle('HeightAdj', { Text = 'Height Adjust', Default = true })
+    _G.UI.ping_on = CombatGroup:AddToggle('PingComp', { Text = 'Adaptive Ping', Default = true })
+    _G.UI.offset_s = CombatGroup:AddSlider('TimingOffset', { Text = 'Timing Offset (ms)', Default = 0, Min = -200, Max = 200, Rounding = 0, Suffix = "ms" })
+    _G.UI.default_s = CombatGroup:AddSlider('DefaultParryTime', { Text = 'Default Parry Time (ms)', Default = 300, Min = 10, Max = 1000, Rounding = 0, Suffix = "ms" })
 
-local Right = Tabs.Console:AddRightGroupbox("Buttons & More")
-Right:AddButton({ Text = "Click me!", Func = function() Library:Notify("Button clicked!") end, Tooltip = "A standard button." })
-Right:AddButton({ Text = "Double Click!", Func = function() Library:Notify("Button double-clicked!") end, DoubleClick = true, Tooltip = "You must click this twice quickly." })
-Right:AddDropdown("MyDropdown", { Text = "A dropdown", Default = 1, Values = { "Option 1", "Option 2", "Option 3" }, Tooltip = "Select one option." })
-    :OnChanged(function(val) Library:Notify("Dropdown changed: " .. tostring(val)) end)
-Right:AddInput("MyInput", { Text = "A Textbox", Default = "Hello", Placeholder = "Enter text...", Tooltip = "A text input field." })
-    :OnChanged(function(val) Library:Notify("Input changed: " .. val) end)
+    local CounterGroup = Tabs.Combat:AddRightGroupbox('Counter & Dodge')
+    _G.UI.wingchun_counter = CounterGroup:AddToggle('WingChunCounter', { Text = 'WingChun M2 Counter (R)', Default = false })
+    _G.UI.wingchun_keybind = CounterGroup:AddKeyPicker('CounterKey', { Text = "Counter Toggle Key", Default = "None", Mode = "Hold" })
+    _G.UI.dodge_m2 = CounterGroup:AddToggle('DodgeM2', { Text = 'Dodge M2', Default = true })
+    _G.UI.dodge_m1 = CounterGroup:AddToggle('DodgeM1', { Text = 'Dodge M1', Default = false })
+    _G.UI.dodge_range_s = CounterGroup:AddSlider('DodgeRange', { Text = 'Dodge Range', Default = 8, Min = 1, Max = 30, Rounding = 0, Suffix = "m" })
 
-local DepToggle = Tabs.Console:AddLeftGroupbox("Dependencies"):AddToggle("DepToggle", { Text = "Enable Dependent Controls", Default = false })
-local DepGroup = Tabs.Console:AddLeftGroupbox("Dependent Group", { Dependencies = { { Library.Toggles.DepToggle, true } } })
-DepGroup:AddLabel("This group only appears when the toggle is on.")
-DepGroup:AddButton({ Text = "Dependent Button", Func = function() Library:Notify("Dependency Met!") end })
+    -- TUNER TAB
+    local TunerGroup = Tabs.Tuner:AddLeftGroupbox('Smart Offset Auto-Tuner')
+    _G.UI.smart_offset_on = TunerGroup:AddToggle('SmartOffset', { Text = 'Enable Smart Offset', Default = false })
+    _G.UI.smart_offset_mode = TunerGroup:AddDropdown('LearnMethod', { Text = 'Learning Method', Default = 1, Values = {"Very Strict", "Strict", "Normal", "Easy"} })
+    _G.UI.window_s = TunerGroup:AddSlider('ParryWindow', { Text = 'Parry Window (ms)', Default = 150, Min = 10, Max = 300, Rounding = 0, Suffix = "ms" })
+    _G.UI.smart_offset_status = TunerGroup:AddLabel("Smart Offset: Idle (0/60 samples)")
 
--- Modules ---------------------------------------------------------------
-local MultiGroup = Tabs.Modules:AddLeftGroupbox("Multi-Select & Modes")
-MultiGroup:AddDropdown("MyMultiDropdown", { Text = "Multi-Select", Default = { ["Choice 1"] = true }, Values = { "Choice 1", "Choice 2", "Choice 3" }, Multi = true, Tooltip = "Select multiple options." })
-    :OnChanged(function(val)
-        local selected = {}
-        for k, v in pairs(val) do if v then table.insert(selected, k) end end
-        Library:Notify("Multi-Dropdown changed: " .. table.concat(selected, ", "))
-    end)
-MultiGroup:AddKeyPicker("HoldKey", { Text = "Hold-mode Keybind", Default = "Ctrl", Mode = "Hold", Tooltip = "Right-click to change mode." })
-MultiGroup:AddSlider("Sensitivity", { Text = "Sensitivity", Default = 50, Min = 0, Max = 100, Suffix = "%" })
+    -- VISUALS TAB
+    local VisualsGroup = Tabs.Visuals:AddLeftGroupbox('ESP Settings')
+    _G.UI.show_esp = VisualsGroup:AddToggle('ShowRange', { Text = 'Show Range', Default = true })
+    _G.UI.show_dodge_esp = VisualsGroup:AddToggle('ShowDodgeRange', { Text = 'Show Dodge Range', Default = true })
+    _G.UI.mark_rng = VisualsGroup:AddToggle('MarkInRange', { Text = 'Mark In Range', Default = true })
+    _G.UI.mark_gate = VisualsGroup:AddToggle('MarkAngleOnly', { Text = 'Mark Angle Only', Default = false })
+    _G.UI.facing_them = VisualsGroup:AddToggle('FaceMe', { Text = 'They Face Me', Default = false })
+    _G.UI.facing_me = VisualsGroup:AddToggle('FaceThem', { Text = 'I Face Them', Default = false })
+    _G.UI.cone_s = VisualsGroup:AddSlider('FaceCone', { Text = 'Face Cone', Default = 160, Min = 30, Max = 360, Rounding = 0 })
 
-local InfoGroup = Tabs.Modules:AddRightGroupbox("Notes")
-InfoGroup:AddLabel("Every control here reacts live to whatever theme")
-InfoGroup:AddLabel("is calibrated in the Calibration tab.")
-InfoGroup:AddDivider()
-InfoGroup:AddButton({ Text = "Fire a Notification", Func = function() Library:Notify("Hello from Xenotech UI!") end })
-
--- Calibration ----------------------------------------------------------------
-local ThemeGroup = Tabs.Calibration:AddLeftGroupbox("Theme Gallery")
-ThemeGroup:AddLabel("Click a swatch to apply it instantly.")
-ThemeGroup:AddThemeGallery()
-
-local CustomGroup = Tabs.Calibration:AddRightGroupbox("Custom Theme Builder")
-CustomGroup:AddColorPicker("CustomAccent", { Text = "Accent", Default = Library.Themes.Custom.Accent })
-    :OnChanged(function(val) Library.Themes.Custom.Accent = val; if Library.CurrentThemeName == "Custom" then Library.AccentColor = val end end)
-CustomGroup:AddColorPicker("CustomAccent2", { Text = "Accent 2", Default = Library.Themes.Custom.Accent2 })
-    :OnChanged(function(val) Library.Themes.Custom.Accent2 = val; if Library.CurrentThemeName == "Custom" then Library.Accent2Color = val end end)
-CustomGroup:AddColorPicker("CustomMain", { Text = "Panel", Default = Library.Themes.Custom.Main })
-    :OnChanged(function(val) Library.Themes.Custom.Main = val; if Library.CurrentThemeName == "Custom" then Library.MainColor = val end end)
-CustomGroup:AddColorPicker("CustomBackground", { Text = "Background", Default = Library.Themes.Custom.Background })
-    :OnChanged(function(val) Library.Themes.Custom.Background = val; if Library.CurrentThemeName == "Custom" then Library.BackgroundColor = val end end)
-CustomGroup:AddButton({ Text = "Apply Custom Theme", Func = function() Library:ApplyTheme("Custom", false) end })
-CustomGroup:AddButton({ Text = "Randomize Palette", Func = function() Library:RandomizeTheme() end })
-
-local SaveGroup = Tabs.Calibration:AddRightGroupbox("Configuration")
-SaveGroup:AddInput("ConfigName", { Text = "Config Name", Default = "default" })
-SaveGroup:AddButton({ Text = "Save", Func = function()
-    local name = Library.Options.ConfigName.Value
-    if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
-    local config_data = { __theme = Library.CurrentThemeName }
-    for id, obj in pairs(Library.Toggles) do config_data[id] = { value = obj.Value } end
-    for id, obj in pairs(Library.Options) do
-        if obj.Type == "ColorPicker" then
-            config_data[id] = { value = { r = obj.Value.r, g = obj.Value.g, b = obj.Value.b, a = obj.Value.a } }
-        else
-            config_data[id] = { value = obj.Value }
+    local LogsGroup = Tabs.Visuals:AddRightGroupbox('Logs')
+    _G.UI.log_unknown = LogsGroup:AddToggle('LogUnknown', { Text = 'Log Unknown IDs', Default = false })
+    _G.UI.debug_on = LogsGroup:AddToggle('DebugLog', { Text = 'Debug Log', Default = false })
+    LogsGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
+        local ids = {}
+        for assetId, _ in pairs(_G.S.LoggedUnknown) do
+            table.insert(ids, (string.match(assetId, "%d+")) or assetId)
         end
-    end
-    file.write(name .. ".json", table_to_JSON(config_data))
-    Library:Notify("Config '" .. name .. "' saved!", 5)
-end })
-SaveGroup:AddButton({ Text = "Load", Func = function()
-    local name = Library.Options.ConfigName.Value
-    if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
-    local file_name = name .. ".json"
-    if not file.exists(file_name) then Library:Notify("Config '" .. name .. "' not found.", 5); return end
-    local config_data = JSON_to_table(file.read(file_name))
-    if config_data.__theme then Library:ApplyTheme(config_data.__theme, true) end
-    for id, data in pairs(config_data) do
-        if id ~= "__theme" then
-            local element = Library.Toggles[id] or Library.Options[id]
-            if element then
-                if element.Type == "ColorPicker" then
-                    element:SetValue(color(data.value.r, data.value.g, data.value.b, data.value.a))
-                else
-                    element:SetValue(data.value)
-                end
+        input.set_clipboard(table.concat(ids, ","))
+        Library:Notify("Copied " .. tostring(#ids) .. " unknown ids")
+    end})
+
+    -- CONFIG TAB (Save/Load)
+    local ConfigGroup = Tabs.Config:AddLeftGroupbox('Configuration')
+    ConfigGroup:AddInput('ConfigName', {Text = "Config Name", Default = "default"})
+    ConfigGroup:AddButton({Text = 'Save Config', Func = function() 
+        local name = Library.Options.ConfigName.Value
+        if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
+        local config_data = {}
+        for id, obj in pairs(Library.Toggles) do config_data[id] = { value = obj.Value } end
+        for id, obj in pairs(Library.Options) do
+            if obj.Type ~= "ColorPicker" and obj.Type ~= "KeyPicker" and obj.Type ~= "Input" then
+                config_data[id] = { value = obj.Value }
             end
         end
-    end
-    Library:Notify("Config '" .. name .. "' loaded!", 5)
-end })
+        file.overwrite(name .. ".json", table_to_JSON(config_data))
+        Library:Notify("Config '"..name.."' saved!", 5)
+    end})
+    ConfigGroup:AddButton({Text = 'Load Config', Func = function() 
+        local name = Library.Options.ConfigName.Value
+        if not name or #name == 0 then Library:Notify("Config name cannot be empty.", 5); return end
+        local file_name = name .. ".json"
+        if not file.exists(file_name) then Library:Notify("Config '"..name.."' not found.", 5); return end
+        local config_data = JSON_to_table(file.read(file_name))
+        for id, data in pairs(config_data) do
+            local element = Library.Toggles[id] or Library.Options[id]
+            if element then element:SetValue(data.value) end
+        end
+        Library:Notify("Config '"..name.."' loaded!", 5)
+    end})
 
-Library:ApplyTheme("Vortessence", true)
+    log.add("[UI] Perpetual Menu Initialized!", color(0.2, 1, 0.2, 1))
+    _G.ui_ready = true
+end)
