@@ -1139,9 +1139,16 @@ spawn(function()
     _G.UI.debug_on = LogsGroup:AddToggle('DebugLog', { Text = 'Debug Log', Default = false })
     LogsGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
         local ids = {}
-        for assetId, _ in pairs(_G.S.LoggedUnknown) do
-            table.insert(ids, (string.match(assetId, "%d+")) or assetId)
+            LogsGroup:AddButton({Text = 'Copy Unknown IDs', Func = function() 
+        local ids = {}
+        if _G.S and _G.S.LoggedUnknown then
+            for assetId, _ in pairs(_G.S.LoggedUnknown) do
+                table.insert(ids, (string.match(assetId, "%d+")) or assetId)
+            end
         end
+        input.set_clipboard(table.concat(ids, ","))
+        Library:Notify("Copied " .. tostring(#ids) .. " unknown ids")
+    end})
         input.set_clipboard(table.concat(ids, ","))
         Library:Notify("Copied " .. tostring(#ids) .. " unknown ids")
     end})
