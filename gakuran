@@ -1405,6 +1405,7 @@ spawn(function()
     while not _G.ui_ready do wait(100) end
     
     -- Map Xenotech UI elements to the format your script expects
+    -- We use _G.UI to access the global table created by the GUI file
     UI.parry_on = { get_value = function() return _G.UI.parry_on.Value end }
     UI.range_s = { get_value = function() return _G.UI.range_s.Value end }
     UI.vert_s = { get_value = function() return _G.UI.vert_s.Value end }
@@ -1474,11 +1475,7 @@ spawn(function()
 
     hook.add("render", "perpetual", function()
         draw_parry_esp()
-
-        local held_str = S.KeyHeld and "  [F]" or ""
-        -- We don't have a direct reference to the status label anymore, 
-        -- so we just log it or use a notification if needed.
-        -- Library:Notify("parry=" .. tostring(UI.parry_on:get_value()) .. held_str .. string.format("  ping=%.0fms", S.TimingState.ping))
+        -- We don't update the status label here because the UI handles its own rendering
     end)
 
     log.add("perpetual loaded -- auto-parry", Colors.GREEN)
